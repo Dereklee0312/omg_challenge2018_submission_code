@@ -18,8 +18,8 @@ from keras.layers import Dense, Input, Flatten
 from keras.layers import Embedding, Dropout, LSTM, Bidirectional, concatenate, Reshape, Flatten
 from keras import optimizers
 import keras.backend as K
-from keras.layers.wrappers import TimeDistributed
-from keras.utils.vis_utils import plot_model
+from keras.layers import TimeDistributed
+from keras.utils import plot_model
 
 from models.attlayer import AttentionWeightedAverage
 import time
