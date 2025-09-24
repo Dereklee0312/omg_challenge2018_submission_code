@@ -8,8 +8,9 @@ for sub in range(1, 19):
         if os.path.exists(csv_file):
             try:
                 df = pd.read_csv(csv_file, header=None, on_bad_lines='skip')
-                # Keep only numeric rows
-                df = df[df[0].apply(lambda x: isinstance(x, (int, float)) or str(x).replace('.', '', 1).isdigit())]
+                # Keep only numeric rows using pd.to_numeric with coercion
+                df[0] = pd.to_numeric(df[0], errors='coerce')
+                df = df.dropna()  # Remove rows where conversion failed (NaN)
                 df.to_csv(csv_file, header=False, index=False)
                 print(f"Cleaned {csv_file}")
             except Exception as e:
