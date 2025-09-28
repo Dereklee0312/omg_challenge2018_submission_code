@@ -22,3 +22,8 @@ The overall diagram of the model is the following:
 <p>
 <img src="model.png" width="860">
 </p>
+
+
+1. Add self annotated csv files to data/original_dataset/annotations
+2. Run clean_csv.py to remove any NA lines and header
+3. Generate the .npy files from the tsv transcrripts and lexicons 

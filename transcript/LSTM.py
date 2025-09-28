@@ -22,10 +22,11 @@ from models.attlayer import AttentionWeightedAverage
 import time
 
 # Parameters
-subjects = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+# subjects = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+subjects = [1]
 # subjects = [1]
 stories_train = [1]  # [1,2,4,5,8]
-stories_val = [2]
+stories_val = [1]
 normalize_labels = True
 smooth = 0  # smooth labels
 modalities = ["text"]
@@ -38,8 +39,8 @@ epochs = 1000
 patience = 5
 lr = 0.0001
 embedding_size = 11
-# window_size = 200
-window_size = 100
+window_size = 200
+# window_size = 100
 initial_dropout = 0.2  # % of lexicon features to drop
 # Model params
 subject_vector_early = False
@@ -162,7 +163,7 @@ def build_model():
         lstm_output = LSTM(lstm_output_dim, return_sequences=False)(seq_input_drop)
     #lstm_output_drop = Dropout(final_dropout)(lstm_output)
    
-    subject_embedding = Embedding(11, subject_vecotr_size, input_length=1)(input_late_subject)
+    subject_embedding = Embedding(11, subject_vecotr_size)(input_late_subject)
     subject_embedding = Flatten()(subject_embedding)
     subject_concat = concatenate([subject_embedding, lstm_output])
     second_last = Dense(second_last_dim, name="second_last", activation=activation)(subject_concat)
