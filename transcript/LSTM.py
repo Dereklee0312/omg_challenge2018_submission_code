@@ -69,9 +69,9 @@ for i in range(len(subjects) * len(stories_val)):
 
 # Data
 def get_X(story, subject, modality):
-    file_name = "/Subject_" + str(subject) + "_Story_" + str(story) + ".npy"
+    file_name = "/Subject_" + str(subject) + "_Story_" + str(story) + "_aligned.npy"
     base_path = "./vectors/val2/"
-    latent_vecs_path = base_path + modality + file_name
+    latent_vecs_path = base_path + "text_aligned" + file_name
     try:
         X = np.load(latent_vecs_path)
         return X
@@ -87,7 +87,7 @@ def get_Y(story, subject, smooth=0):
         # if smooth > 0:
         #     Y = butter_lowpass_filter_bidirectional(np.array(Y), cutoff=smooth, fs=25, order=1)
         # if normalize_labels:
-        Y = open(labels_path_full).read().split("\n")[1:-1]
+        Y = open(labels_path_full).read().split("\n")[1:]
         Y = [float(x) for x in Y]
         #     Y = (Y - np.min(Y)) / (np.max(Y) - np.min(Y) + 1e-10)
         return Y
