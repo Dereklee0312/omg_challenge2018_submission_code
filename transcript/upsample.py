@@ -16,7 +16,7 @@ def upsample_to_frames(lex_csv, ann_csv):
     
     # Load frame count from labels
     gt_valence = pd.read_csv(ann_csv, header=None).values.flatten()
-    num_frames = len(gt_valence)
+    num_frames = len(gt_valence[1:])
     
     # Recompute word frame durations (simplified; use your time_to_frame logic)
     # Assume even distribution for demo; in practice, load from TSV or SRT
