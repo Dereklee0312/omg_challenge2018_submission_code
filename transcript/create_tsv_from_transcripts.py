@@ -31,7 +31,8 @@ def time_to_frame(total_seconds, fps):
 def srt_to_tsv(srt_file, annotation_file, output_file):
     try:
         # Load ground truth valence with float dtype, skip bad lines
-        gt_valence = pd.read_csv(annotation_file, header=None, dtype=float, on_bad_lines='skip').values.flatten()
+        gt_df = pd.read_csv(annotation_file, header=0, dtype=float, on_bad_lines='skip')
+        gt_valence = gt_df.iloc[:, 0].dropna().values
         if len(gt_valence) == 0:
             print(f"Empty or invalid valence CSV: {annotation_file}. Using fallback valence.")
             gt_valence = np.array([])
@@ -97,7 +98,7 @@ def srt_to_tsv(srt_file, annotation_file, output_file):
         print(f"Saved {output_file} with {len(words)} words")
     except FileNotFoundError:
         print(f"Missing file: {srt_file} or {annotation_file}")
-    except pd.errors.ParserError:
+    except (pd.errors.ParserError, ValueError):
         print(f"Parser error in CSV: {annotation_file}. Check for non-numeric data.")
     except Exception as e:
         print(f"Error processing {srt_file}: {e}")
