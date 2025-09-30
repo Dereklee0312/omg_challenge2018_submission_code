@@ -20,9 +20,9 @@ import time
 from models.attlayer import AttentionWeightedAverage
 
 # Parameters
-subjects = [1]
-stories_train = [1]
-stories_val = [1]
+subjects = [1,2,3,4,5,6,7,8,9,10]
+stories_train = [1,4,5]
+stories_val = [2]
 normalize_labels = True
 smooth = 0
 modalities = ["text"]
@@ -31,7 +31,7 @@ labels_path = "./data/original_dataset/annotations/"
 checkpoint_filename = "tmp_weights.h5"
 batch_size = 500
 epochs = 1000
-patience = 5
+patience = 100
 lr = 0.0001
 embedding_size = 11
 window_size = 100
@@ -67,7 +67,7 @@ def get_Y(story, subject, smooth=0):
     file_name = "/Subject_" + str(subject) + "_Story_" + str(story) + ".csv"
     labels_path_full = labels_path + file_name
     try:
-        Y = open(labels_path_full).read().split("\n")[1:]
+        Y = open(labels_path_full).read().split("\n")[1:-1]
         Y = [float(x) for x in Y]
         return Y
     except FileNotFoundError:
