@@ -9,13 +9,13 @@ from keras import optimizers
 from keras import regularizers
 import utilities_func as uf
 import loadconfig
-import ConfigParser
+import configparser
 import matplotlib.pyplot as plt
 np.random.seed(1)
 
-print "loading dataset..."
+# print "loading dataset..."
 config = loadconfig.load()
-cfg = ConfigParser.ConfigParser()
+cfg = configparser.ConfigParser()
 cfg.read(config)
 
 #load parameters from config file
@@ -25,10 +25,10 @@ TRAINING_TARGET = cfg.get('model', 'training_target_load')
 VALIDATION_PREDICTORS = cfg.get('model', 'validation_predictors_load')
 VALIDATION_TARGET = cfg.get('model', 'validation_target_load')
 SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
-print "Training predictors: " + TRAINING_PREDICTORS
-print "Training target: " + TRAINING_TARGET
-print "Validation predictors: " + VALIDATION_PREDICTORS
-print "Validation target: " + VALIDATION_TARGET
+print("Training predictors: " + TRAINING_PREDICTORS)
+print("Training target: " + TRAINING_TARGET)
+print("Validation predictors: " + VALIDATION_PREDICTORS)
+print("Validation target: " + VALIDATION_TARGET)
 
 #load datasets
 training_predictors = np.load(TRAINING_PREDICTORS)
@@ -95,13 +95,13 @@ valence_model = Model(inputs=input_data, outputs=out)
 #valence_model.compile(loss=batch_CCC, optimizer=opt)
 valence_model.compile(loss=batch_CCC, optimizer=opt)
 
-print valence_model.summary()
+print(valence_model.summary())
 
 #model training
 history = valence_model.fit(training_predictors, training_target, epochs = num_epochs, validation_data=(validation_predictors,validation_target), callbacks=callbacks_list, batch_size=batch_size, shuffle=True)
 
-print "Train loss = " + str(min(history.history['loss']))
-print "Validation loss = " + str(min(history.history['val_loss']))
+print("Train loss = " + str(min(history.history['loss'])))
+print("Validation loss = " + str(min(history.history['val_loss'])))
 
 
 plt.figure(1)

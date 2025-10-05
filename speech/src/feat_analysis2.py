@@ -2,12 +2,12 @@ import numpy as np
 import essentia.standard as ess
 import essentia
 import essentia
-import ConfigParser
+import configparser
 import loadconfig
 import utilities_func as uf
 
 config = loadconfig.load()
-cfg = ConfigParser.ConfigParser()
+cfg = configparser.ConfigParser()
 cfg.read(config)
 
 #get values from config file

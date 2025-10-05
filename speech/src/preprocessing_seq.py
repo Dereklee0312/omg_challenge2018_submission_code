@@ -4,11 +4,11 @@ import utilities_func as uf
 import feat_analysis2 as fa
 import pandas
 import loadconfig
-import ConfigParser
+import configparser
 
 #load configuration file
 config = loadconfig.load()
-cfg = ConfigParser.ConfigParser()
+cfg = configparser.ConfigParser()
 cfg.read(config)
 
 SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
@@ -71,7 +71,7 @@ def filter_items(contents_list, target_subj='all', target_story='all'):
             story = story.split('.')[0]
             if story == target_story:
                 story_list.append(file)
-                print 'iiiiii'
+                print('iiiiii')
     for subj in subj_list:
         if subj in story_list:
             final_list.append(subj)
@@ -148,7 +148,7 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
     #process all files in folders
     index = 0
     for datapoint in filtered_list:
-        print datapoint
+        print(datapoint)
         annotation_file = annotation_folder + '/' + datapoint
         name = datapoint.split('.')[0]
         sound_file = sound_folder + '/' + name +".mp4.wav"  #get correspective sound
@@ -160,7 +160,7 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
         target.append(cut_target)
         perc_progress = (index * 100) / num_sounds
         index += 1
-        print "processed files: " + str(index) + " over " + str(num_sounds) + "  |  progress: " + str(perc_progress) + "%"
+        print("processed files: " + str(index) + " over " + str(num_sounds) + "  |  progress: " + str(perc_progress) + "%")
 
     predictors = np.concatenate(predictors, axis=0)  #reshape arrays
     target = np.concatenate(target, axis=0)
@@ -185,9 +185,9 @@ def build_matrices(output_predictors_matrix, output_target_matrix, sound_folder,
     predictors, target = preprocess_dataset(sound_folder, annotation_folder, TARGET_SUBJECT, TARGET_STORY)
     np.save(output_predictors_matrix, predictors)
     np.save(output_target_matrix, target)
-    print "Matrices saved succesfully"
-    print 'predictors shape: ' + str(predictors.shape)
-    print 'target shape: ' + str(target.shape)
+    print("Matrices saved succesfully")
+    print('predictors shape: ' + str(predictors.shape))
+    print('target shape: ' + str(target.shape))
 
 
 if __name__ == '__main__':
