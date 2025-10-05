@@ -190,7 +190,7 @@ def main():
     column_names_lex2 = ["AFRAID", "AMUSED", "ANGRY", "ANNOYED", "DONT_CARE", "HAPPY", "INSPIRED", "SAD"]
 
     subjects = range(1, 11)
-    stories = range(1, 6)
+    stories = range(1, 9)
 
     for sub in subjects:
         for st in stories:

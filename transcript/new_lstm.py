@@ -21,7 +21,7 @@ from models.attlayer import AttentionWeightedAverage
 
 # Parameters
 subjects = [1,2,3,4,5,6,7,8,9,10]
-stories_train = [1,4,5]
+stories_train = [1,4,5,8]
 stories_val = [2]
 normalize_labels = True
 smooth = 0
