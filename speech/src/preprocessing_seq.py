@@ -168,7 +168,7 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
     shuffled_predictors = []
     shuffled_target = []
     num_datapoints = target.shape[0]
-    random_indices = range(num_datapoints)
+    random_indices = list(range(num_datapoints))
     np.random.shuffle(random_indices)
     for i in random_indices:
         shuffled_predictors.append(predictors[i])
