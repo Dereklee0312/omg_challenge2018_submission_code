@@ -12,3 +12,5 @@ transcript/data
 transcript/vectors/val2/text_aligned
 logs
 speech/dataset
+speech/model_output
+speech/models
