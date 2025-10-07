@@ -128,27 +128,88 @@ def preemphasis(input_vector, fs):
     return output
 
 def CCC(y_true, y_pred):
-    '''
-    Lin's Concordance correlation coefficient: https://en.wikipedia.org/wiki/Concordance_correlation_coefficient
-    Accepting tensors as input
+    import tensorflow as tf
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
 
-    '''
+    # Means over the sequence
+    mean_true = tf.reduce_mean(y_true)
+    mean_pred = tf.reduce_mean(y_pred)
 
-    import keras.backend as K
-    # covariance between y_true and y_pred
-    N = K.int_shape(y_pred)[-1]
-    s_xy = 1.0 / (N - 1.0 + K.epsilon()) * K.sum((y_true - K.mean(y_true)) * (y_pred - K.mean(y_pred)))
-    # means
-    x_m = K.mean(y_true)
-    y_m = K.mean(y_pred)
-    # variances
-    s_x_sq = K.var(y_true)
-    s_y_sq = K.var(y_pred)
+    # Center the data
+    centered_true = y_true - mean_true
+    centered_pred = y_pred - mean_pred
 
-    # condordance correlation coefficient
-    ccc = (2.0*s_xy) / (s_x_sq + s_y_sq + (x_m-y_m)**2)
+    # Standard deviations
+    std_true = tf.sqrt(tf.reduce_mean(tf.square(centered_true)) + 1e-8)
+    std_pred = tf.sqrt(tf.reduce_mean(tf.square(centered_pred)) + 1e-8)
 
+    # Covariance
+    covar = tf.reduce_mean(centered_true * centered_pred)
+
+    # CCC
+    numerator = 2.0 * covar
+    denominator = tf.square(std_true) + tf.square(std_pred) + tf.square(mean_true - mean_pred) + 1e-8
+    ccc = numerator / denominator
     return ccc
+
+# def CCC(y_true, y_pred):
+# 1st ITER
+#     import tensorflow as tf
+#     # Convert to float32
+#     y_true = tf.cast(y_true, tf.float32)
+#     y_pred = tf.cast(y_pred, tf.float32)
+
+#     # Flatten arrays (assuming batched input)
+#     y_true = tf.reshape(y_true, [-1])
+#     y_pred = tf.reshape(y_pred, [-1])
+
+#     # Calculate means
+#     mean_true = tf.reduce_mean(y_true)
+#     mean_pred = tf.reduce_mean(y_pred)
+
+#     # Center the data
+#     centered_true = y_true - mean_true
+#     centered_pred = y_pred - mean_pred
+
+#     # Calculate standard deviations
+#     std_true = tf.sqrt(tf.reduce_mean(tf.square(centered_true)) + 1e-8)
+#     std_pred = tf.sqrt(tf.reduce_mean(tf.square(centered_pred)) + 1e-8)
+
+#     # Calculate covariance
+#     covar = tf.reduce_mean(centered_true * centered_pred)
+
+#     # Calculate Pearson correlation (rho)
+#     rho = covar / (std_true * std_pred + 1e-8)
+
+#     # CCC calculation
+#     numerator = 2.0 * rho * std_true * std_pred
+#     denominator = tf.square(std_true) + tf.square(std_pred) + tf.square(mean_true - mean_pred) + 1e-8
+
+#     ccc = numerator / denominator
+#     return ccc
+# def CCC(y_true, y_pred):
+#     '''
+#     Lin's Concordance correlation coefficient: https://en.wikipedia.org/wiki/Concordance_correlation_coefficient
+#     Accepting tensors as input
+
+#     '''
+
+#     import keras.backend as K
+#     # covariance between y_true and y_pred
+#     N = K.int_shape(y_pred)[-1]
+#     s_xy = 1.0 / (N - 1.0 + K.epsilon()) * K.sum((y_true - K.mean(y_true)) * (y_pred - K.mean(y_pred)))
+#     # means
+#     x_m = K.mean(y_true)
+#     y_m = K.mean(y_pred)
+#     # variances
+#     s_x_sq = K.var(y_true)
+#     s_y_sq = K.var(y_pred)
+
+#     # condordance correlation coefficient
+#     ccc = (2.0*s_xy) / (s_x_sq + s_y_sq + (x_m-y_m)**2)
+
+#     return ccc
 
 
 def find_mean_std(input_folder):
