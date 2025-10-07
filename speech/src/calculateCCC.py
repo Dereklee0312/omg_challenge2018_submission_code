@@ -75,7 +75,6 @@ def calculateCCC(validationFolder, modelOutputFolder):
     for fileIndex in range (len(validationFiles)):
 
 
-
         dataY = pandas.read_csv(validationFolder+"/"+validationFiles[fileIndex], header=0, sep=",")
 
         dataYPred = pandas.read_csv(modelOutputFolder+"/"+modelOutputfolder[fileIndex], header=0, sep=",")

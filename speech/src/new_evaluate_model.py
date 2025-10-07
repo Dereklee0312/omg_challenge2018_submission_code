@@ -25,6 +25,7 @@ SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
 MODEL = cfg.get('model', 'load_model')
 SR = cfg.getint('sampling', 'sr')
 HOP_SIZE = cfg.getint('stft', 'hop_size')
+MODEL_OUTPUT_FOLDER = cfg.get('model', 'modelOutputFolder')  # Read from config
 
 fps = 25  # Annotations per second
 hop_annotation = SR / fps
@@ -79,6 +80,7 @@ print("using model: " + MODEL)
 def predict_datapoint(input_sound, input_annotation):
     '''
     loads one audio file and predicts its continuous valence
+    Saves the prediction to a CSV file in model_output_folder
     '''
     sr, samples = uf.wavread(input_sound)  # load
     e_samples = uf.preemphasis(samples, sr)  # pre-emphasis with sr
@@ -121,6 +123,15 @@ def predict_datapoint(input_sound, input_annotation):
     # Apply butterworth filter
     b, a = butter(3, 0.01, 'low')
     final_pred = filtfilt(b, a, final_pred)
+    
+    # Save prediction to CSV
+    name = os.path.basename(input_sound).replace(".mp4.wav", "")
+    subject = name.split("_")[1]  # Extract subject number
+    story = name.split("_")[3]    # Extract story number
+    output_file = os.path.join(MODEL_OUTPUT_FOLDER, f"Subject_{subject}_Story_{story}.csv")
+    df = pandas.DataFrame({"valence": final_pred})
+    df.to_csv(output_file, index=False)
+    print(f"Saved prediction to {output_file}")
     
     ccc = ccc2(final_pred, target)
     print("CCC = " + str(ccc))
@@ -167,6 +178,7 @@ def extract_LLD_datapoint(input_sound, input_annotation):
 def evaluate_all_data(sound_dir, annotation_dir):
     '''
     compute prediction and ccc for all validation set
+    Saves predictions to modelOutputFolder
     '''
     file_list = os.listdir(annotation_dir)
     file_list = file_list[:]  # Copy list
@@ -201,3 +213,9 @@ def extract_LLD_dataset(sound_dir, annotation_dir):
         lld = extract_LLD_datapoint(sound_file, annotation_file)
         output_filename = LLD_DIR + '/' + name + '.npy'
         np.save(output_filename, lld)
+
+if __name__ == "__main__":
+    # Example usage: Provide sound directory and annotation directory
+    sound_dir = "../dataset/Validation/audio"  # Adjust as per your setup
+    annotation_dir = "../dataset/Validation/Annotations"  # Adjust as per your setup
+    evaluate_all_data(sound_dir, annotation_dir)
