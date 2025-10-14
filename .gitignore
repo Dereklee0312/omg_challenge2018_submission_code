@@ -19,3 +19,4 @@ landmarks/faces_extracted
 landmarks/tmp
 omg_dataset/OMG_Empathy2019_testSet/Videos
 omg_data/Annotations
+transcript/predictions
