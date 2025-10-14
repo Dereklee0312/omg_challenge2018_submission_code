@@ -25,7 +25,7 @@ activation = "relu"
 
 # Normalization parameters from training (replace with actual values)
 # These should be saved during training or computed from training labels
-train_min_y = 0.0  # Replace with actual min_y from training
+train_min_y = -1.0  # Replace with actual min_y from training
 train_max_y = 1.0  # Replace with actual max_y from training
 
 # Data loading function from original script
