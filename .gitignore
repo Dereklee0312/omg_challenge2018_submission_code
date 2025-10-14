@@ -15,3 +15,7 @@ speech/dataset
 speech/model_output
 speech/models
 transcript/tmp_weights.h5
+landmarks/faces_extracted
+landmarks/tmp
+omg_dataset/OMG_Empathy2019_testSet/Videos
+omg_data/Annotations
