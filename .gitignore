@@ -20,3 +20,7 @@ landmarks/tmp
 omg_dataset/OMG_Empathy2019_testSet/Videos
 omg_data/Annotations
 transcript/predictions
+Arpan
+transcript_speech/models
+transcript_speech/speech_predictors
+transcript_speech/vectors/val2
