@@ -28,3 +28,4 @@ transcript_rawface/models
 transcript_rawface/rawface_predictions
 transcript_rawface/transcript_predictions
 transcript_rawface/vectors/val2
+transcript_rawface/test_prediction_FINAL
