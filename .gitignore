@@ -29,3 +29,5 @@ transcript_rawface/rawface_predictions
 transcript_rawface/transcript_predictions
 transcript_rawface/vectors/val2
 transcript_rawface/test_prediction_FINAL
+speech/speech_predictions
+transcript_rawface/speech_predictions
