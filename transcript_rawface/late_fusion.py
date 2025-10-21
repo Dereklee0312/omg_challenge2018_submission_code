@@ -83,8 +83,8 @@ results = []
 with_filter = True
 subjects = [1,2,3,4,5,6,7,8,9,10]
 modalities = ["rawface", "transcript"]  # Adapted for raw_face and transcript (lexicons)
-stories_trainVal = [4,5,8]
-stories_test = [4,5]
+stories_trainVal = [4,8]
+stories_test = [5]
 results_modality = {m:0 for m in modalities}
 
 save_csv = True
