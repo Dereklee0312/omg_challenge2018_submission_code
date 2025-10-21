@@ -1,3 +1,4 @@
+# ALSO GENERATES PREDICTIONS FILE
 import numpy as np
 import loadconfig
 import os
@@ -216,6 +217,6 @@ def extract_LLD_dataset(sound_dir, annotation_dir):
 
 if __name__ == "__main__":
     # Example usage: Provide sound directory and annotation directory
-    sound_dir = "../dataset/Validation/audio"  # Adjust as per your setup
-    annotation_dir = "../dataset/Validation/Annotations"  # Adjust as per your setup
+    sound_dir = "../dataset/Training/audio"  # Adjust as per your setup
+    annotation_dir = "../dataset/Training/Annotations"  # Adjust as per your setup
     evaluate_all_data(sound_dir, annotation_dir)
