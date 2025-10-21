@@ -82,7 +82,7 @@ def butter_lowpass_filter_bidirectional(data, cutoff=0.1, fs=25, order=1):
 results = []
 with_filter = True
 subjects = [1,2,3,4,5,6,7,8,9,10]
-modalities = ["rawface", "transcript"]  # Adapted for raw_face and transcript (lexicons)
+modalities = ["rawface", "transcript", "speech"]  # Adapted for raw_face and transcript (lexicons)
 stories_trainVal = [4,8]
 stories_test = [5]
 results_modality = {m:0 for m in modalities}
@@ -98,11 +98,13 @@ for i, subject in enumerate(subjects):
 
 
         X_coeff = {
+                   "speech":    1. ,
                    "rawface":    .1,  # From original script
                    "transcript":  1. ,  # From original script (transcript/lexicons)
                   }
 
         filters = {
+               "speech":   (0.004,1),
                "rawface":  (0.006,1),  # From original script
                "transcript":  (0.01,1),  # From original script
               }
