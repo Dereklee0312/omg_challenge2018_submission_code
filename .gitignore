@@ -31,3 +31,9 @@ transcript_rawface/vectors/val2
 transcript_rawface/test_prediction_FINAL
 speech/speech_predictions
 transcript_rawface/speech_predictions
+Multimodal - Transcript + Raw Face + Speech/models
+Multimodal - Transcript + Raw Face + Speech/rawface_predictions
+Multimodal - Transcript + Raw Face + Speech/speech_predictions
+Multimodal - Transcript + Raw Face + Speech/test_prediction_FINAL
+Multimodal - Transcript + Raw Face + Speech/transcript_predictions
+Multimodal - Transcript + Raw Face + Speech/vectors/val2
