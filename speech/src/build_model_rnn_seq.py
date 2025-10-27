@@ -1,24 +1,25 @@
-#CONVOLUTIONAL NEURAL NETWORK
-#tuned as in https://www.researchgate.net/publication/306187492_Deep_Convolutional_Neural_Networks_and_Data_Augmentation_for_Environmental_Sound_Classification
+# CONVOLUTIONAL NEURAL NETWORK
+# tuned as in https://www.researchgate.net/publication/306187492_Deep_Convolutional_Neural_Networks_and_Data_Augmentation_for_Environmental_Sound_Classification
 
 import numpy as np
-from keras.models import Model
-from keras.layers import Input, GRU, Dense, Dropout, Activation, Flatten, LSTM, TimeDistributed, Reshape, Bidirectional, BatchNormalization
-from keras.callbacks import EarlyStopping, ModelCheckpoint, History
-from keras import optimizers
-from keras import regularizers
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, GRU, Dense, Dropout, Flatten, LSTM, TimeDistributed, Reshape, Bidirectional, BatchNormalization
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, History
+from tensorflow.keras import optimizers
+from tensorflow.keras import regularizers
 import utilities_func as uf
 import loadconfig
 import configparser
 import matplotlib.pyplot as plt
+import tensorflow as tf
 np.random.seed(1)
 
-# print "loading dataset..."
+# Load dataset...
 config = loadconfig.load()
 cfg = configparser.ConfigParser()
 cfg.read(config)
 
-#load parameters from config file
+# Load parameters from config file
 NEW_CONV_MODEL = cfg.get('model', 'save_model')
 TRAINING_PREDICTORS = cfg.get('model', 'training_predictors_load')
 TRAINING_TARGET = cfg.get('model', 'training_target_load')
@@ -30,14 +31,13 @@ print("Training target: " + TRAINING_TARGET)
 print("Validation predictors: " + VALIDATION_PREDICTORS)
 print("Validation target: " + VALIDATION_TARGET)
 
-#load datasets
+# Load datasets
 training_predictors = np.load(TRAINING_PREDICTORS)
 training_target = np.load(TRAINING_TARGET)
 validation_predictors = np.load(VALIDATION_PREDICTORS)
 validation_target = np.load(VALIDATION_TARGET)
 
-#rescale datasets to mean 0 and std 1 (validation with respect
-#to training mean and std)
+# Rescale datasets to mean 0 and std 1 (validation with respect to training mean and std)
 tr_mean = np.mean(training_predictors)
 tr_std = np.std(training_predictors)
 v_mean = np.mean(validation_predictors)
@@ -47,14 +47,14 @@ training_predictors = np.divide(training_predictors, tr_std)
 validation_predictors = np.subtract(validation_predictors, tr_mean)
 validation_predictors = np.divide(validation_predictors, tr_std)
 
-#normalize target between 0 and 1
+# Normalize target between 0 and 1
 training_target = np.multiply(training_target, 0.5)
 training_target = np.add(training_target, 0.5)
 validation_target = np.multiply(validation_target, 0.5)
 validation_target = np.add(validation_target, 0.5)
 
-#hyperparameters
-batch_size = 100
+# Hyperparameters
+batch_size = 64
 num_epochs = 200
 lstm1_depth = 250
 hidden_size = 8
@@ -63,55 +63,76 @@ dense_size = 100
 regularization_lambda = 0.01
 
 reg = regularizers.l2(regularization_lambda)
-sgd = optimizers.SGD(lr=0.001, decay=0.003, momentum=0.5)
-opt = optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+sgd = optimizers.SGD(learning_rate=0.001, momentum=0.5)
+opt = optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 
-#custom loss
+# Custom loss (vectorized for TF 2.x compatibility)
 def batch_CCC(y_true, y_pred):
-    CCC = uf.CCC(y_true, y_pred)
-    CCC = CCC /float(batch_size)
-    CCC = 1-CCC
-    return CCC
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
+    
+    # Means over sequence dimension (axis=1), shape: (batch_size,)
+    mean_true = tf.reduce_mean(y_true, axis=1)
+    mean_pred = tf.reduce_mean(y_pred, axis=1)
+    
+    # Center the data
+    centered_true = y_true - tf.expand_dims(mean_true, 1)
+    centered_pred = y_pred - tf.expand_dims(mean_pred, 1)
+    
+    # Covariance over sequence, shape: (batch_size,)
+    covar = tf.reduce_mean(centered_true * centered_pred, axis=1)
+    
+    # Standard deviations, shape: (batch_size,)
+    std_true = tf.sqrt(tf.reduce_mean(tf.square(centered_true), axis=1) + 1e-8)
+    std_pred = tf.sqrt(tf.reduce_mean(tf.square(centered_pred), axis=1) + 1e-8)
+    
+    # CCC per sequence
+    numerator = 2.0 * covar
+    denominator = tf.square(std_true) + tf.square(std_pred) + tf.square(mean_true - mean_pred) + 1e-8
+    ccc = numerator / denominator
+    
+    # Average CCC over batch and compute loss
+    mean_ccc = tf.reduce_mean(ccc)
+    loss = 1.0 - mean_ccc
+    return loss
 
 time_dim = training_predictors.shape[1]
 features_dim = training_predictors.shape[2]
 
-#callbacks
-best_model = ModelCheckpoint(NEW_CONV_MODEL, monitor='val_loss', save_best_only=True, mode='min')  #save the best model
-early_stopping_monitor = EarlyStopping(patience=5)  #stop training when the model is not improving
+# Callbacks
+best_model = ModelCheckpoint(NEW_CONV_MODEL, monitor='val_loss', save_best_only=True, mode='min')  # Save the best model
+early_stopping_monitor = EarlyStopping(patience=25)  # Stop training when the model is not improving
 callbacks_list = [early_stopping_monitor, best_model]
 
-#model definition
+# Model definition
 input_data = Input(shape=(time_dim, features_dim))
 gru = Bidirectional(GRU(lstm1_depth, return_sequences=True))(input_data)
 norm = BatchNormalization()(gru)
 hidden = TimeDistributed(Dense(hidden_size, activation='linear'))(norm)
 drop = Dropout(drop_prob)(hidden)
-flat = Flatten()(drop)
+flat = Flatten(name='flatten')(drop)
 out = Dense(SEQ_LENGTH, activation='linear')(flat)
 
-#model creation
+# Model creation
 valence_model = Model(inputs=input_data, outputs=out)
-#valence_model.compile(loss=batch_CCC, optimizer=opt)
 valence_model.compile(loss=batch_CCC, optimizer=opt)
 
 print(valence_model.summary())
 
-#model training
-history = valence_model.fit(training_predictors, training_target, epochs = num_epochs, validation_data=(validation_predictors,validation_target), callbacks=callbacks_list, batch_size=batch_size, shuffle=True)
+# Model training
+history = valence_model.fit(training_predictors, training_target, epochs=num_epochs, validation_data=(validation_predictors, validation_target), callbacks=callbacks_list, batch_size=batch_size, shuffle=True)
 
 print("Train loss = " + str(min(history.history['loss'])))
 print("Validation loss = " + str(min(history.history['val_loss'])))
 
-
 plt.figure(1)
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
-plt.title('MODEL PERFORMANCE', size = 15)
-plt.ylabel('loss', size = 15)
-plt.xlabel('Epoch', size = 15)
-plt.xticks(size = 15)
-plt.yticks(size = 15)
-plt.legend(['train', 'validation'], fontsize = 12)
+plt.title('MODEL PERFORMANCE', size=15)
+plt.ylabel('loss', size=15)
+plt.xlabel('Epoch', size=15)
+plt.xticks(size=15)
+plt.yticks(size=15)
+plt.legend(['train', 'validation'], fontsize=12)
 
 plt.show()
