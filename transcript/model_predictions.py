@@ -133,13 +133,9 @@ for subject in subjects:
         # Make predictions
         predictions = model.predict([X_new_late_subject, X_new], batch_size=500)  # Shape: [num_windows, 1]
         
-        # Reverse normalization (if applied during training)
+        # Reverse normalization 
         if normalize_labels:
             predictions = predictions * (train_max_y - train_min_y) + train_min_y
-        
-        # Optional: Apply f_trick (requires Y_train)
-        # Y_train = ... # Load training labels if needed
-        # predictions = f_trick(Y_train, predictions)
         
         # Flatten predictions
         predictions = predictions.flatten()  # Shape: [num_windows]
