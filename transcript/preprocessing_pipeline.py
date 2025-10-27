@@ -16,21 +16,6 @@ aligned_npy_dir = "vectors/val2/text_aligned"  # Aligned frame-level NPYs
 for d in [tsv_dir, csv_dir, npy_dir, aligned_npy_dir, lexicon_dir]:
     os.makedirs(d, exist_ok=True)
 
-# Lexicon URLs for auto-download
-warriner_url = "http://saifmohammad.com/WebDocs/VAD/NRC-VAD-Lexicon.txt"  # Adjust if needed
-depechemood_url = "https://github.com/marcoguerini/DepecheMood/raw/master/DepecheMood%2B%2B/DepecheMood_english_token_full.tsv"
-
-# Download lexicons if not present
-def download_lexicons():
-    warriner_path = os.path.join(lexicon_dir, "Ratings_Warriner_et_al.csv")
-    if not os.path.exists(warriner_path):
-        print("Downloading Warriner lexicon...")
-        urllib.request.urlretrieve(warriner_url, warriner_path)  # Conversion from TXT to CSV needed
-    depechemood_path = os.path.join(lexicon_dir, "DepecheMood_english_token_full.tsv")
-    if not os.path.exists(depechemood_path):
-        print("Downloading DepecheMood lexicon...")
-        urllib.request.urlretrieve(depechemood_url, depechemood_path)
-
 # Step 1: SRT to TSV
 def time_to_seconds(time_str):
     try:
@@ -183,7 +168,6 @@ def upsample_to_frames(lex_npy, ann_csv, output_aligned_npy):
 
 # Main: Run full pipeline
 def main():
-    download_lexicons()
     df1 = pd.read_csv(os.path.join(lexicon_dir, "Ratings_Warriner_et_al.csv"))
     df2 = pd.read_csv(os.path.join(lexicon_dir, "DepecheMood_english_token_full.tsv"), delimiter="\t")
     column_names_lex1 = ["V.Mean.Sum", "A.Mean.Sum", "D.Mean.Sum"]
