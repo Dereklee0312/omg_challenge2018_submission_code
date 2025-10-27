@@ -216,7 +216,6 @@ def extract_LLD_dataset(sound_dir, annotation_dir):
         np.save(output_filename, lld)
 
 if __name__ == "__main__":
-    # Example usage: Provide sound directory and annotation directory
-    sound_dir = "../dataset/Validation/audio"  # Adjust as per your setup
-    annotation_dir = "../dataset/Validation/Annotations"  # Adjust as per your setup
+    sound_dir = "../dataset/Validation/audio" 
+    annotation_dir = "../dataset/Validation/Annotations" 
     evaluate_all_data(sound_dir, annotation_dir)
