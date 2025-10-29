@@ -14,3 +14,9 @@ The preprocessing.py script applies 4 concatenated transformations to the audio 
 ### training
 
 The script build_model_rnn_seq.py first normalizes the input data in order to obtain a dataset with mean equal to 0 and standard deviation equal to 1. Then, it trains the RNN-based model and saves the best one with respect to the lowest validation loss.
+
+
+# Note
+Requires installing ffmpeg for unix systems.
+
+first run the mp4_to_wav.sh script to generate the wav files
