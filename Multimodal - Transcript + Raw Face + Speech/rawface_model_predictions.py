@@ -5,21 +5,26 @@ import os
 import cv2
 import tensorflow as tf
 
-# Define paths
-model_path = './models/conv_3D_raw_face_2025-09-25_04-35-30.keras'
+# Model path 
+model_path = './models/conv_3D_raw_face_2025-09-24_01-51-18.keras'
+
+# Data paths
 base_img_path = './data/extracted_faces'
 output_path = './rawface_predictions/'
 os.makedirs(output_path, exist_ok=True)
 
-# Parameters from training script
+# Model parameters 
 seq_len = 10
 img_x = 48
 img_y = 48
 ch_n = 1  # Grayscale
 id_len = 10
-stride = 1  # Dense predictions to match frame count as closely as possible
+stride = 1  # Dense predictions
 
-# Custom loss function (required for loading the model)
+# Subjects and stories to process
+subjects = range(1, 11)  # 1 to 10
+stories = [1, 4, 5, 8]
+
 def ccc_error(y_true, y_pred):
     """Concordance Correlation Coefficient loss"""
     x = tf.cast(y_true, tf.float32)
@@ -41,13 +46,15 @@ def ccc_error(y_true, y_pred):
 
     return 1 - ccc
 
-# Load the model with custom loss
 print("Loading model...")
 model = load_model(model_path, custom_objects={'ccc_error': ccc_error})
-model.summary()  # Optional: Print model summary
+model.summary()
 
-# Load images function (adapted from training script)
 def load_images_from_directory(base_path, video_name, max_images=None):
+    """
+    Load and preprocess face images from Subject_img directory.
+    Supports multiple possible paths for flexibility.
+    """
     possible_paths = [
         os.path.join(base_path, 'Training', video_name, 'Subject_img'),
         os.path.join(base_path, 'Validation', video_name, 'Subject_img'),
@@ -72,19 +79,14 @@ def load_images_from_directory(base_path, video_name, max_images=None):
         img_path = os.path.join(subject_img_path, img_file)
         img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
         if img is not None:
-            if img.shape != (48, 48):
-                img = cv2.resize(img, (48, 48))
+            if img.shape != (img_y, img_x):
+                img = cv2.resize(img, (img_x, img_y))
             img = img.astype(np.float32) / 255.0
             images.append(img)
     
     return np.array(images)
 
-# Subjects and stories matching model_predictions.py
-subjects = range(1, 11)  # 1 to 10
-stories = [1, 4, 5, 8]
-
-# Generate predictions
-print("Generating predictions...")
+print("Generating Raw Face Model Predictions...")
 for subject in subjects:
     for story in stories:
         print(f"Processing Subject {subject}, Story {story}...")
@@ -94,15 +96,15 @@ for subject in subjects:
         num_images = len(images)
         
         if num_images < seq_len:
-            print(f"Skipping Subject {subject}, Story {story}: Not enough frames ({num_images} < {seq_len})")
+            print(f"Skipping: Not enough frames ({num_images} < {seq_len})")
             continue
         
-        # Create subject ID vector
+        # Create one-hot subject ID vector
         id_vector = np.zeros(id_len, dtype=np.float32)
         if subject - 1 < id_len:
             id_vector[subject - 1] = 1.0
         
-        # Generate sliding windows and predict
+        # Generate predictions using sliding window
         num_preds = num_images - seq_len + 1
         predictions = []
         
@@ -112,21 +114,21 @@ for subject in subjects:
             id_vec = id_vector.reshape(1, id_len)
             
             pred = model.predict({'main_input': img_seq, 'aux_input': id_vec}, verbose=0)
-            predictions.append(pred[0][0])  # Extract scalar prediction
+            predictions.append(pred[0][0])  # Scalar valence prediction
         
-        predictions = np.array(predictions)
+        predictions = np.array(predictions, dtype=np.float32)
         
-        # Pad to match the total number of images (repeat first/last prediction for edge cases)
         if len(predictions) < num_images:
             pad_length = num_images - len(predictions)
-            padding = np.full(pad_length, predictions[-1] if predictions.size > 0 else 0.0)
-            predictions = np.concatenate([predictions, padding])
+            first_pred = predictions[0] if predictions.size > 0 else 0.0
+            padding = np.full(pad_length, first_pred, dtype=np.float32)
+            predictions = np.concatenate([padding, predictions])
         elif len(predictions) > num_images:
-            predictions = predictions[:num_images]  # Truncate if overshooting
+            predictions = predictions[:num_images]  # Truncate (shouldn't happen with stride=1)
         
         # Save predictions
         output_file = os.path.join(output_path, f"Subject_{subject}_Story_{story}_predictions.npy")
         np.save(output_file, predictions)
-        print(f"Saved predictions to {output_file} (Shape: {predictions.shape})")
+        print(f"Saved: {output_file} | Frames: {num_images} | Predictions: {len(predictions)}")
 
 print("Prediction generation complete.")
