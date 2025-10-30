@@ -150,30 +150,30 @@ for i, subject in enumerate(subjects):
             ourdf[modality]=X[modality]
             finaldf = pd.concat([finaldf,ourdf])
 
-
         preds_s /= sum(X_coeff.values())
-
-
 
         if with_filter:
             preds_s = butter_lowpass_filter_bidirectional(preds_s, cutoff=0.01, order=1)
         preds_tricks_s = f_trick(Y_trainVal_s, preds_s)
-
-
-
-        plt.figure(figsize=(13, 5))
-
-        for modality in modalities:
-            plt.plot(X[modality],label=modality)
-        plt.plot(preds_tricks_s,label='average',lw=5)
-        plt.legend()
-        plt.show()
 
         # Compute and store CCC
         Y_test = np.array(get_Y(story, subject))
         ccc_val, rho = ccc(Y_test, preds_tricks_s)
         ccc_values.append(ccc_val)  # NEW: Store CCC value
         print(f"CCC for Subject {subject}, Story {story}: {ccc_val:.4f} (Pearson: {rho:.4f})")
+
+        plt.figure(figsize=(13, 5))
+        for modality in modalities:
+            plt.plot(X[modality], label=modality, alpha=0.7)
+        plt.plot(preds_tricks_s, label='average', lw=5, color='black')
+        plt.plot(Y_test, label='Ground Truth', lw=3, color='red', linestyle='--')  # <-- GROUND TRUTH
+        plt.title(f'Subject {subject} - Story {story} | CCC = {ccc_val:.4f}')
+        plt.xlabel('Frame')
+        plt.ylabel('Valence')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.show()
 
 
         if save_csv:
