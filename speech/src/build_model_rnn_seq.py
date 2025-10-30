@@ -54,7 +54,7 @@ validation_target = np.multiply(validation_target, 0.5)
 validation_target = np.add(validation_target, 0.5)
 
 # Hyperparameters
-batch_size = 64
+batch_size = 32
 num_epochs = 200
 lstm1_depth = 250
 hidden_size = 8
@@ -101,7 +101,7 @@ features_dim = training_predictors.shape[2]
 
 # Callbacks
 best_model = ModelCheckpoint(NEW_CONV_MODEL, monitor='val_loss', save_best_only=True, mode='min')  # Save the best model
-early_stopping_monitor = EarlyStopping(patience=25)  # Stop training when the model is not improving
+early_stopping_monitor = EarlyStopping(patience=5)  # Stop training when the model is not improving
 callbacks_list = [early_stopping_monitor, best_model]
 
 # Model definition

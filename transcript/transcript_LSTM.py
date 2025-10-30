@@ -18,6 +18,7 @@ from keras import optimizers
 import tensorflow.keras.backend as K
 import time
 from models.attlayer import AttentionWeightedAverage
+import tensorflow as tf
 
 # Parameters
 subjects = [1,2,3,4,5,6,7,8,9,10]
@@ -50,6 +51,11 @@ final_dropout = 0.2
 lstm_attention_type = "softmax"
 second_last_dim = 32
 day_time = time.strftime("%Y-%m-%d_%H_%M_%S")
+# tf.random.set_seed(1)
+# tf.random.set_seed(2)
+# tf.random.set_seed(3)
+# tf.random.set_seed(4)
+tf.random.set_seed(5)
 
 # Data
 def get_X(story, subject, modality):

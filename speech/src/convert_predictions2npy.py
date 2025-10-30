@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 subjects = list(range(1,11))
-stories = [4, 5, 8]
+stories = [1, 4, 5, 8]
 
 for i in subjects:
     for j in stories:
