@@ -219,5 +219,3 @@ The process handles 9250 frames per story (based on your outputs), assuming a vi
 3. If expanding data, rerun preprocessing for all subjects/stories, then train with updated params.
 
 This pipeline is now robust, with fixes for compatibility, shapes, and errors. If you add more data or tweak params (e.g., `batch_size=32`, `patience=20`), it should train longer and potentially improve metrics. Let me know if you need further tweaks!
-
-# TESTING
