@@ -19,4 +19,16 @@ The script build_model_rnn_seq.py first normalizes the input data in order to ob
 # Note
 Requires installing ffmpeg for unix systems.
 
-first run the mp4_to_wav.sh script to generate the wav files
+copy the mp4_to_wav.sh script to the data/scripts folder and run it to generate the wav files
+```
+cp mp4_to_wav.sh data/scripts/
+cd data/scripts/
+./mp4_to_wav.sh
+```
+
+then run the preprocessing_seq.py script to generate the predictors and target matrices
+```
+python preprocessing_seq.py
+```
+
+then run the build_model_rnn_seq.py script to build the model
