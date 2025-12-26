@@ -7,7 +7,27 @@ import os
 
 # Parameters (must match training settings)
 subjects = [1,2,3,4,5,6,7,8,9,10]
-stories_new = [1,4,5,8]
+# Use validation stories for predictions (or specify which stories to predict)
+validation_annotations_path = "../data/Validation/Annotations/"
+
+# Discover validation stories from directory
+def discover_stories(annotations_dir):
+    """Discover which stories are available in a given annotations directory."""
+    story_nums = set()
+    for file in os.listdir(annotations_dir):
+        if file.endswith(".csv") and file.startswith("Subject_"):
+            parts = file.split("_")
+            if len(parts) >= 4:
+                try:
+                    story_num = int(parts[3].split(".")[0])
+                    story_nums.add(story_num)
+                except ValueError:
+                    continue
+    return sorted(list(story_nums))
+
+stories_new = discover_stories(validation_annotations_path)
+print(f"Generating predictions for stories: {stories_new}")
+
 base_path = "./data/"
 output_path = "./predictions/"  # Directory to save prediction .npy files
 window_size = 100

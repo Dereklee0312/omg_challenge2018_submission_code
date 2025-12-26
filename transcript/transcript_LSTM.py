@@ -1,34 +1,55 @@
 #!/usr/bin/env python
 # coding: utf-8
-import pandas as pd
-import json
 import numpy as np
 from matplotlib import pyplot as plt
 import time
 from scipy.stats import pearsonr
 from scipy.signal import *
-import pandas as pd
-import pickle
 import keras
 from keras.models import Model
-from keras.models import Sequential
 from keras.layers import Dense, Input, Flatten
-from keras.layers import Embedding, Dropout, LSTM, Bidirectional, concatenate, Reshape, Flatten
+from keras.layers import Embedding, Dropout, LSTM, concatenate
 from keras import optimizers
 import tensorflow.keras.backend as K
-import time
 from models.attlayer import AttentionWeightedAverage
 import tensorflow as tf
+import os
+import glob
 
 # Parameters
 subjects = [1,2,3,4,5,6,7,8,9,10]
-stories_train = [1,4,5,8]
-stories_val = [2]
+# Automatically determine stories from data directories
+training_annotations_path = "../data/Training/Annotations/"
+validation_annotations_path = "../data/Validation/Annotations/"
+
+# Discover available stories from training and validation directories
+def discover_stories(annotations_dir):
+    """Discover which stories are available in a given annotations directory."""
+    story_nums = set()
+    pattern = os.path.join(annotations_dir, "Subject_*_Story_*.csv")
+    files = glob.glob(pattern)
+    for file in files:
+        # Extract story number from filename like "Subject_1_Story_2.csv"
+        basename = os.path.basename(file)
+        parts = basename.split("_")
+        if len(parts) >= 4 and parts[0] == "Subject" and parts[2] == "Story":
+            try:
+                story_num = int(parts[3].split(".")[0])
+                story_nums.add(story_num)
+            except ValueError:
+                continue
+    return sorted(list(story_nums))
+
+stories_train = discover_stories(training_annotations_path)
+stories_val = discover_stories(validation_annotations_path)
+
+print(f"Discovered training stories: {stories_train}")
+print(f"Discovered validation stories: {stories_val}")
+
 normalize_labels = True
 smooth = 0
 modalities = ["text"]
 base_path = "./data/"
-labels_path = "./data/original_dataset/annotations/"
 checkpoint_filename = "tmp_weights.h5"
 batch_size = 500
 epochs = 1000
@@ -69,9 +90,19 @@ def get_X(story, subject, modality):
         print(f"Missing file: {latent_vecs_path}")
         return np.zeros((window_size, embedding_size))
 
-def get_Y(story, subject, smooth=0):
-    file_name = "/Subject_" + str(subject) + "_Story_" + str(story) + ".csv"
-    labels_path_full = labels_path + file_name
+def get_Y(story, subject, split="train", smooth=0):
+    """
+    Load labels from the appropriate split directory.
+    split: "train" or "val"
+    """
+    file_name = "Subject_" + str(subject) + "_Story_" + str(story) + ".csv"
+    if split == "train":
+        labels_path_full = os.path.join(training_annotations_path, file_name)
+    elif split == "val":
+        labels_path_full = os.path.join(validation_annotations_path, file_name)
+    else:
+        raise ValueError(f"Invalid split: {split}. Must be 'train' or 'val'")
+    
     try:
         Y = open(labels_path_full).read().split("\n")[1:-1]
         Y = [float(x) for x in Y]
@@ -193,7 +224,7 @@ Y_frame_list_train = []
 frame_lengths_train = []
 for subject in subjects:
     for story in stories_train:
-        Y = get_Y(story, subject)
+        Y = get_Y(story, subject, split="train")
         Y_frame_list_train.append(Y)
         frame_lengths_train.append(len(Y))
 
@@ -248,7 +279,7 @@ Y_frame_list_val = []
 frame_lengths_val = []
 for subject in subjects:
     for story in stories_val:
-        Y = get_Y(story, subject)
+        Y = get_Y(story, subject, split="val")
         Y_frame_list_val.append(Y)
         frame_lengths_val.append(len(Y))
 

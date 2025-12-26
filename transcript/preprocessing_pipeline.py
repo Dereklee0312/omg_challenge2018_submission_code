@@ -7,7 +7,8 @@ import urllib.request
 
 # Directories
 srt_dir = "data/srt"  # SRT files
-annotation_dir = "data/original_dataset/annotations"  # Valence CSVs
+training_annotation_dir = "../data/Training/Annotations"  # Training Valence CSVs
+validation_annotation_dir = "../data/Validation/Annotations"  # Validation Valence CSVs
 lexicon_dir = "./lexicons/"  # Lexicon files
 tsv_dir = "data/text/word_valence"  # Intermediate TSVs
 csv_dir = "../data/text/lexicons_features"  # Intermediate CSVs
@@ -174,22 +175,64 @@ def main():
     column_names_lex2 = ["AFRAID", "AMUSED", "ANGRY", "ANNOYED", "DONT_CARE", "HAPPY", "INSPIRED", "SAD"]
 
     subjects = range(1, 11)
-    stories = range(1, 9)
-
+    
+    # Process training data
+    print("Processing training data...")
+    training_stories = set()
+    for file in os.listdir(training_annotation_dir):
+        if file.endswith(".csv") and file.startswith("Subject_"):
+            parts = file.split("_")
+            if len(parts) >= 4:
+                try:
+                    story_num = int(parts[3].split(".")[0])
+                    training_stories.add(story_num)
+                except ValueError:
+                    continue
+    
     for sub in subjects:
-        for st in stories:
+        for st in training_stories:
             story_name = f"Subject_{sub}_Story_{st}"
             srt_file = f"{srt_dir}/transcribed_subject_{sub}_story_{st}.srt"
-            ann_file = f"{annotation_dir}/{story_name}.csv"
+            ann_file = os.path.join(training_annotation_dir, f"{story_name}.csv")
             tsv_file = f"{tsv_dir}/{story_name}.tsv"
             csv_file = f"{csv_dir}/{story_name}_lex.csv"
             npy_file = f"{npy_dir}/{story_name}.npy"
             aligned_npy_file = f"{aligned_npy_dir}/{story_name}_aligned.npy"
 
-            srt_to_tsv(srt_file, ann_file, tsv_file)
-            tsv_to_lexicon_csv(tsv_file, csv_file, df1, df2, column_names_lex1, column_names_lex2)
-            csv_to_npy(csv_file, npy_file)
-            upsample_to_frames(npy_file, ann_file, aligned_npy_file)
+            if os.path.exists(ann_file):
+                srt_to_tsv(srt_file, ann_file, tsv_file)
+                tsv_to_lexicon_csv(tsv_file, csv_file, df1, df2, column_names_lex1, column_names_lex2)
+                csv_to_npy(csv_file, npy_file)
+                upsample_to_frames(npy_file, ann_file, aligned_npy_file)
+    
+    # Process validation data
+    print("Processing validation data...")
+    validation_stories = set()
+    for file in os.listdir(validation_annotation_dir):
+        if file.endswith(".csv") and file.startswith("Subject_"):
+            parts = file.split("_")
+            if len(parts) >= 4:
+                try:
+                    story_num = int(parts[3].split(".")[0])
+                    validation_stories.add(story_num)
+                except ValueError:
+                    continue
+    
+    for sub in subjects:
+        for st in validation_stories:
+            story_name = f"Subject_{sub}_Story_{st}"
+            srt_file = f"{srt_dir}/transcribed_subject_{sub}_story_{st}.srt"
+            ann_file = os.path.join(validation_annotation_dir, f"{story_name}.csv")
+            tsv_file = f"{tsv_dir}/{story_name}.tsv"
+            csv_file = f"{csv_dir}/{story_name}_lex.csv"
+            npy_file = f"{npy_dir}/{story_name}.npy"
+            aligned_npy_file = f"{aligned_npy_dir}/{story_name}_aligned.npy"
+
+            if os.path.exists(ann_file):
+                srt_to_tsv(srt_file, ann_file, tsv_file)
+                tsv_to_lexicon_csv(tsv_file, csv_file, df1, df2, column_names_lex1, column_names_lex2)
+                csv_to_npy(csv_file, npy_file)
+                upsample_to_frames(npy_file, ann_file, aligned_npy_file)
 
 if __name__ == "__main__":
     main()
