@@ -1,0 +1,88 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam nodesep 50
+skinparam ranksep 50
+
+package "Input Data" {
+  [Raw Data\n(e.g., Sequence: time x features\nImage: H x W x C)] as Input
+}
+
+package "Feature Extraction Backbone" {
+
+  package "Conv Block 1" {
+    [Convolution\n(filters=64-128\nkernel=3-5\nActivation: ReLU)] as Conv1
+    [Batch Normalization] as BN1
+    [Optional: Pooling\n(Max or Average)] as Pool1
+  }
+
+  package "Conv Block 2" {
+    [Convolution\n(filters=128-256\nkernel=3-5\nReLU)] as Conv2
+    [Batch Normalization] as BN2
+    [Optional: Pooling] as Pool2
+  }
+
+  package "Conv Block N" {
+    [Convolution\n(filters=higher\nkernel=3-5\nReLU)] as ConvN
+    [Batch Normalization] as BNN
+    [Optional: Pooling] as PoolN
+  }
+}
+
+package "Transition / Reduction" {
+  [Global Average Pooling\nor Flatten] as GAP
+}
+
+package "Classification / Regression Head" {
+
+  [Dense Layer\n(128-512 units)\nReLU + Optional Dropout] as Dense1
+
+  [Optional Additional Dense] as DenseExtra
+
+  [Output Dense\n(units = target)\nActivation: softmax/sigmoid/linear] as Output
+}
+
+Input --> Conv1
+Conv1 --> BN1
+BN1 --> Pool1
+Pool1 --> Conv2
+Conv2 --> BN2
+BN2 --> Pool2
+Pool2 --> ConvN
+ConvN --> BNN
+BNN --> PoolN
+PoolN --> GAP
+GAP --> Dense1
+Dense1 --> DenseExtra
+DenseExtra --> Output
+
+note right of Input
+  Adapt shape to data type:
+  - 1D: Conv1D for time series
+  - 2D: Conv2D for images
+  - 3D: Conv3D for videos/volumes
+end note
+
+note bottom of Conv1
+  Early blocks: Detect low-level features
+  Deeper blocks: Abstract high-level patterns
+  Gradually increase filter count
+end note
+
+note right of GAP
+  Collapses spatial/temporal dimensions
+  Reduces parameters and overfitting risk
+end note
+
+note right of Output
+  Task-dependent:
+  - Multi-class: softmax
+  - Binary: sigmoid
+  - Regression: linear
+end note
+
+note top of Dense1
+  Dropout (e.g., 0.3-0.5) for regularization
+end note
+
+@enduml
