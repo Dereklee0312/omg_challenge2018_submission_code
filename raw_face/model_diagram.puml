@@ -1,0 +1,114 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam nodesep 70
+skinparam ranksep 70
+skinparam dpi 300
+skinparam arrowThickness 1.5
+
+package "Main Video Input Branch\n(shape: seq_len × img_x × img_y × ch_n)\nSpatiotemporal Feature Extraction" as MainBranch {
+
+  [Input\nmain_input\n(seq_len, img_x, img_y, ch_n)\nVideo/Volume Sequence] as main_in
+
+  [Conv3D 32\nkernel=(3,3,3)\nactivation=relu\npadding=same\nLearns local 3D patterns] as conv3d_1
+  
+  [Conv3D 32\nkernel=(3,3,3)\nactivation=relu\npadding=same\nDeepens feature maps] as conv3d_2
+  
+  [MaxPooling3D\npool_size=(3,3,3)\npadding=same\nDownsamples by factor ~3\nReduces spatial dims] as pool3d_1
+  
+  [BatchNormalization\nNormalizes activations\nStabilizes training] as bn1
+
+  [Conv3D 64\nkernel=(3,3,3)\nactivation=relu\npadding=same\nHigher capacity features] as conv3d_3
+  
+  [Conv3D 64\nkernel=(3,3,3)\nactivation=relu\npadding=same\nFurther abstraction] as conv3d_4
+  
+  [MaxPooling3D\npool_size=(3,3,3)\npadding=same\nFurther downsampling] as pool3d_2
+  
+  [BatchNormalization\nNormalizes deeper activations] as bn2
+
+  [Flatten\nConverts 5D tensor to 1D vector\nPrepares for dense layers] as flatten
+  
+  [Dense 512\nactivation=relu\nname="conv_out"\nHigh-level representation] as dense_conv
+}
+
+package "Auxiliary ID Input Branch\n(shape: id_len,)\nMetadata Processing" as AuxBranch {
+  [Input\naux_input\n(id_len,)\nAdditional features (e.g., IDs, scalars)] as aux_in
+  
+  [Dense 3\nactivation=relu\nProjects auxiliary features] as aux_dense
+}
+
+package "Merged Regression Head\nLate Fusion & Prediction" as Head {
+  [Concatenate\nMerges conv_out (512) + aux_dense (3)\n→ 515 dimensions] as concat
+  
+  [Dense 128\nactivation=relu\nIntegrates fused features] as dense1
+  
+  [Dropout 0.6\nRandomly drops 60% units\nReduces overfitting] as drop1
+  
+  [Dense 32\nactivation=relu\nFurther compression] as dense2
+  
+  [Dropout 0.6\nAdditional regularization] as drop2
+  
+  [Dense 1\nactivation=linear\nname="reg_out"\nFinal scalar regression output] as output
+}
+
+' Main Branch Connections
+main_in --> conv3d_1
+conv3d_1 --> conv3d_2
+conv3d_2 --> pool3d_1
+pool3d_1 --> bn1
+bn1 --> conv3d_3
+conv3d_3 --> conv3d_4
+conv3d_4 --> pool3d_2
+pool3d_2 --> bn2
+bn2 --> flatten
+flatten --> dense_conv
+
+' Auxiliary Branch
+aux_in --> aux_dense
+
+' Merging
+dense_conv --> concat
+aux_dense --> concat
+
+' Head
+concat --> dense1
+dense1 --> drop1
+drop1 --> dense2
+dense2 --> drop2
+drop2 --> output
+
+' Notes
+note top of main_in
+  Primary input: 5D tensor representing
+  sequences of 3D volumes (e.g., video frames)
+end note
+
+note top of aux_in
+  Secondary input: Structured metadata
+  (e.g., patient ID, categorical embeddings)
+end note
+
+note right of concat
+  Late fusion strategy:
+  Convolutional spatiotemporal features
+  combined with auxiliary data only at the end
+end note
+
+note bottom of output
+  Model type: Multi-input regression
+  Output: Single continuous value
+  Suitable for tasks like age estimation,
+  score prediction from video + metadata
+end note
+
+note left of dense_conv
+  conv_out: Bottleneck representation
+  of entire spatiotemporal sequence
+end note
+
+note right of drop1
+  Heavy dropout (0.6) indicates
+  potential overfitting risk or small dataset
+end note
+
+@enduml
