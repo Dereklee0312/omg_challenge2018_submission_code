@@ -83,16 +83,28 @@ def preprocess_datapoint(input_sound, input_annotation):
     generate predictors (stft) and target (valence sequence)
     of one sound file from the OMG dataset
     '''
-    sr, samples = uf.wavread(input_sound)  #read audio
-    e_samples = uf.preemphasis(samples, sr)  #apply preemphasis
-    feats = fa.extract_features(e_samples)  #extract features
-    annotation = pandas.read_csv(input_annotation)  #read annotations
+    # Convert samples to floats
+    sr, samples = uf.wavread(input_sound)
+
+    # High-pass filter to boost high frequencies which are important for speech recognition
+    e_samples = uf.preemphasis(samples, sr)
+    
+    # Computets STFT (Short-Time Fourier Transform) of the audio signal ti get frequency content over time
+    # Raw audio is hard to learn from. Frequency features capture patterns the model can use.
+    feats = fa.extract_features(e_samples)
+    
+    # Read annotations
+    annotation = pandas.read_csv(input_annotation)  
     annotation = annotation.values
     annotation = np.reshape(annotation, annotation.shape[0])
+
+    # Align features and annotations by shifting annotations by target_delay
     annotated_frames = int(len(annotation) * frames_per_annotation)
     feats = feats[:annotated_frames]  #discard non annotated final frames
     annotation = annotation[TARGET_DELAY:]  #shift back annotations by target_delay
-    feats2 = feats[:-frames_delay]
+    # Trim features to match shifted annotations (only if delay > 0)
+    if frames_delay > 0:
+        feats = feats[:-frames_delay]
 
     return feats, annotation
 

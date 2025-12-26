@@ -1,7 +1,6 @@
 import numpy as np
 import essentia.standard as ess
 import essentia
-import essentia
 import configparser
 import loadconfig
 import utilities_func as uf
