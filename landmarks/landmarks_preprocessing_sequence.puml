@@ -1,0 +1,93 @@
+@startuml Landmarks Preprocessing Sequence Diagram
+
+title Sequence: Processing One Frame
+
+actor User
+participant "Main Script" as Main
+participant "VideoCapture" as Video
+participant "Frame Splitter" as Splitter
+participant "Face Detector\n(dlib)" as Detector
+participant "Landmark Predictor\n(dlib)" as Predictor
+participant "Data Arrays" as Arrays
+participant "File System" as Files
+
+User -> Main: Start processing video
+Main -> Video: Open video file
+Video -> Main: Return total frames
+
+loop For each frame
+    Main -> Video: Read frame
+    Video -> Main: Return frame (2560×720)
+    
+    Main -> Splitter: Split frame
+    Splitter -> Main: Actor region (0:720, 0:1280)\nSubject region (0:720, 1280:2560)
+    
+    alt Actor Face Processing
+        Main -> Main: Check: lastImageWithFaceDetected > 9?
+        
+        alt Need new detection
+            Main -> Detector: Detect face in Actor region
+            Detector -> Main: Return detection (or None)
+            Main -> Main: Cache detection as oldDetsActor
+        else Use cached detection
+            Main -> Main: Use oldDetsActor
+        end
+        
+        alt Face detected
+            Main -> Main: Crop face region
+            Main -> Files: Save cropped face image
+            Main -> Arrays: Store bounding box [x1,y1,x2,y2]
+            Main -> Predictor: Predict 68 landmarks
+            Predictor -> Main: Return 68 (x,y) coordinates
+            Main -> Arrays: Store flattened landmarks (136 values)
+        else No face detected
+            alt Not first frame
+                Main -> Arrays: Copy previous frame data
+            else First frame
+                Main -> Files: Save full Actor region
+            end
+        end
+    end
+    
+    alt Subject Face Processing
+        Main -> Main: Check: lastImageWithFaceDetected > 9?
+        
+        alt Need new detection
+            Main -> Detector: Detect face in Subject region
+            Detector -> Main: Return detection (or None)
+            Main -> Main: Cache detection as oldDetsSubject
+        else Use cached detection
+            Main -> Main: Use oldDetsSubject
+        end
+        
+        alt Face detected
+            Main -> Main: Crop face region
+            Main -> Files: Save cropped face image
+            Main -> Main: Adjust coordinates: +[1280, 0, 1280, 0]
+            Main -> Arrays: Store bounding box [x1+1280,y1,x2+1280,y2]
+            Main -> Predictor: Predict 68 landmarks
+            Predictor -> Main: Return 68 (x,y) coordinates
+            Main -> Main: Adjust landmarks: +[1280, 0]
+            Main -> Arrays: Store flattened landmarks (136 values)
+        else No face detected
+            alt Not first frame
+                Main -> Arrays: Copy previous frame data
+            else First frame
+                Main -> Files: Save full Subject region
+            end
+        end
+    end
+    
+    Main -> Main: Increment counters\nUpdate progress bar
+end
+
+Main -> Arrays: Collect all data
+Main -> Files: Save faceActor.csv
+Main -> Files: Save landmarksActor.csv
+Main -> Files: Save faceSubject.csv
+Main -> Files: Save landmarksSubject.csv
+
+Main -> User: Processing complete
+
+@enduml
+

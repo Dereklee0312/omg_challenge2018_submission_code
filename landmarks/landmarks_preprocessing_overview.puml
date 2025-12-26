@@ -1,0 +1,72 @@
+@startuml Landmarks Preprocessing Overview
+
+title Component Overview: Facial Landmarks Extraction System
+
+package "Input" {
+  [Video Files\n2560×720 split-screen] as videos
+}
+
+package "Processing Components" {
+  [dlib Face Detector] as detector
+  [dlib Landmark Predictor\n68 points] as predictor
+  [OpenCV Video Reader] as cv2_reader
+  [Frame Splitter] as splitter
+}
+
+package "Data Structures" {
+  database "faceActor\n(totalFrames, 4)" as faceActor
+  database "landmarksActor\n(totalFrames, 136)" as landmarksActor
+  database "faceSubject\n(totalFrames, 4)" as faceSubject
+  database "landmarksSubject\n(totalFrames, 136)" as landmarksSubject
+}
+
+package "Output" {
+  folder "Actor_face/\nCropped images" as actor_faces
+  folder "Subject_face/\nCropped images" as subject_faces
+  file "faceActor.csv\nBounding boxes" as actor_coords
+  file "landmarksActor.csv\n68 landmarks" as actor_landmarks
+  file "faceSubject.csv\nBounding boxes" as subject_coords
+  file "landmarksSubject.csv\n68 landmarks" as subject_landmarks
+}
+
+videos --> cv2_reader
+cv2_reader --> splitter
+splitter --> detector : "Left: 0-1280"
+splitter --> detector : "Right: 1280-2560"
+
+detector --> predictor
+predictor --> faceActor
+predictor --> landmarksActor
+predictor --> faceSubject
+predictor --> landmarksSubject
+
+faceActor --> actor_faces
+landmarksActor --> actor_landmarks
+faceSubject --> subject_faces
+landmarksSubject --> subject_landmarks
+
+faceActor --> actor_coords
+landmarksActor --> actor_landmarks
+faceSubject --> subject_coords
+landmarksSubject --> subject_landmarks
+
+note right of detector
+  Optimization:
+  Detection runs every
+  10 frames (faceDetectorPrecision=9)
+  Results cached for speed
+end note
+
+note right of predictor
+  68 Facial Landmarks:
+  - Jaw: 0-16
+  - Right eyebrow: 17-21
+  - Left eyebrow: 22-26
+  - Nose: 27-35
+  - Right eye: 36-41
+  - Left eye: 42-47
+  - Mouth: 48-67
+end note
+
+@enduml
+

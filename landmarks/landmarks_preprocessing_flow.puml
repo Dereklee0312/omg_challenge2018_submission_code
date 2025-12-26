@@ -1,0 +1,154 @@
+@startuml Landmarks Preprocessing Flow
+
+title Facial Landmarks Extraction from Split-Screen Videos
+
+start
+
+:Initialize dlib detector and predictor;
+note right
+  detector = dlib.get_frontal_face_detector()
+  predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
+end note
+
+:Load video files from path;
+:Sort videos naturally (video1, video2, video10...);
+
+repeat :For each video file;
+
+  :Copy video to tmp/current_video.mp4;
+  :Open video with cv2.VideoCapture;
+  :Get total frame count;
+  
+  :Initialize arrays;
+  note right
+    faceActor: (totalFrames, 4)
+    landmarksActor: (totalFrames, 136)
+    faceSubject: (totalFrames, 4)
+    landmarksSubject: (totalFrames, 136)
+  end note
+  
+  :Create output directories;
+  note right
+    Actor_face/
+    Subject_face/
+    Actor_face_coordinates/
+    Actor_face_landmarks/
+    Subject_face_coordinates/
+    Subject_face_landmarks/
+  end note
+  
+  :Initialize counters;
+  note right
+    imageNumber = 0
+    lastImageWithFaceDetected = 0
+  end note
+  
+  repeat :For each frame in video;
+    
+    :Read frame from video;
+    
+    if (Frame read successfully?) then (yes)
+      
+      partition "Actor Face Processing (Left Half)" {
+        
+        :Extract left half: img[0:720, 0:1280];
+        
+        if (lastImageWithFaceDetected == 0\nOR\nlastImageWithFaceDetected > faceDetectorPrecision?) then (yes - run detection)
+          :Run dlib face detector on Actor region;
+          :lastImageWithFaceDetected = 0;
+          
+          if (Face detected?) then (yes)
+            :Cache detection: oldDetsActor = dets;
+          else (no)
+            :oldDetsActor = None;
+          endif
+        else (no - use cache)
+          :Reuse cached detection: dets = oldDetsActor;
+        endif
+        
+        if (Face detected?) then (yes)
+          :Crop face: imageActor[d.top():d.bottom(), d.left():d.right()];
+          :Save cropped face image;
+          :Store bounding box: faceActor[imageNumber] = [x1, y1, x2, y2];
+          :Detect 68 landmarks using predictor;
+          :Store landmarks: landmarksActor[imageNumber] = flattened(68×2);
+        else (no)
+          if (imageNumber > 0?) then (yes)
+            :Copy previous frame data;
+            note right
+              faceActor[imageNumber] = faceActor[imageNumber-1]
+              landmarksActor[imageNumber] = landmarksActor[imageNumber-1]
+            end note
+          else (no - first frame)
+            :Save full Actor region image;
+          endif
+        endif
+      }
+      
+      partition "Subject Face Processing (Right Half)" {
+        
+        :Extract right half: img[0:720, 1280:2560];
+        
+        if (lastImageWithFaceDetected == 0\nOR\nlastImageWithFaceDetected > faceDetectorPrecision?) then (yes - run detection)
+          :Run dlib face detector on Subject region;
+          :lastImageWithFaceDetected = 0;
+          
+          if (Face detected?) then (yes)
+            :Cache detection: oldDetsSubject = dets;
+          else (no)
+            :oldDetsSubject = None;
+          endif
+        else (no - use cache)
+          :Reuse cached detection: dets = oldDetsSubject;
+        endif
+        
+        if (Face detected?) then (yes)
+          :Crop face: imageSubject[d.top():d.bottom(), d.left():d.right()];
+          :Save cropped face image;
+          :Adjust coordinates for full frame: +[1280, 0, 1280, 0];
+          :Store bounding box: faceSubject[imageNumber] = [x1+1280, y1, x2+1280, y2];
+          :Detect 68 landmarks using predictor;
+          :Adjust landmark coordinates: +[1280, 0];
+          :Store landmarks: landmarksSubject[imageNumber] = flattened(68×2);
+        else (no)
+          if (imageNumber > 0?) then (yes)
+            :Copy previous frame data;
+            note right
+              faceSubject[imageNumber] = faceSubject[imageNumber-1]
+              landmarksSubject[imageNumber] = landmarksSubject[imageNumber-1]
+            end note
+          else (no - first frame)
+            :Save full Subject region image;
+          endif
+        endif
+      }
+      
+      :Increment imageNumber;
+      :Increment lastImageWithFaceDetected;
+      :Update progress bar;
+      
+    else (no - end of video)
+    endif
+    
+  repeat while (More frames?) is (yes)
+  
+  :Save Actor data to CSV;
+  note right
+    faceActor.csv: (totalFrames, 4)
+    landmarksActor.csv: (totalFrames, 136)
+  end note
+  
+  :Save Subject data to CSV;
+  note right
+    faceSubject.csv: (totalFrames, 4)
+    landmarksSubject.csv: (totalFrames, 136)
+  end note
+  
+  :Print processing time;
+  
+repeat while (More videos?) is (yes)
+
+stop
+
+@enduml
+
