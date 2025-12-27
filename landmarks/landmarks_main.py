@@ -1,32 +1,11 @@
 from model import *
 from utils import *
 
-import numpy as np
 import os
-from matplotlib import pyplot as plt
-import pandas as pd
-from sklearn.metrics import roc_auc_score
-from scipy.stats import pearsonr
 
 
 import keras
 from keras import optimizers
-from keras.models import Sequential
-from keras.layers import (
-    LSTM,
-    Input,
-    Dense,
-    Conv1D,
-    MaxPooling1D,
-    GlobalAveragePooling1D,
-    Dropout,
-    Reshape,
-    BatchNormalization,
-)
-from keras.models import Model
-from keras.layers.advanced_activations import LeakyReLU
-from keras.optimizers import SGD
-import keras.backend as K
 from keras.callbacks import CSVLogger
 
 from contextlib import redirect_stdout
@@ -72,7 +51,7 @@ epochs = 1000
 patience = 1000
 lr = 0.000001
 
-opt = optimizers.Adam(lr=lr, decay=0.0)
+opt = optimizers.Adam(learning_rate=lr)
 
 N_features = X_training.shape[2]
 
@@ -86,7 +65,9 @@ model.compile(
     optimizer=opt,
 )
 
-metrics_callback = Metrics()
+# metrics_callback = Metrics()
+# csv_logger = CSVLogger("training.log")
+metrics_callback = Metrics(X_validation, Y_validation, filepath, batch_size)
 csv_logger = CSVLogger("training.log")
 
 callbacks_list = [  # csv_logger,
@@ -119,5 +100,5 @@ save_predictions_training = False
 save_latent_test = False
 save_predictions_test = True
 
-model.load_weights("best_model.h5")
-save_predictions()
+model.load_weights(f"./{experiment_name}/best_model.h5")
+save_predictions(model, Y_training)

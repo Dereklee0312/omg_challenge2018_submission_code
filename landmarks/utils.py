@@ -1,44 +1,43 @@
 import numpy as np
 import os
 from matplotlib import pyplot as plt
-import pandas as pd
-from sklearn.metrics import roc_auc_score
 from scipy.stats import pearsonr
-from scipy.signal import butter, lfilter, freqz
+from scipy.signal import butter, lfilter
 from scipy.signal import argrelextrema
 
 # try with minmax
 import keras
-from keras import optimizers
-from keras.models import Sequential
-from keras.layers import (
-    LSTM,
-    Input,
-    Dense,
-    Conv1D,
-    MaxPooling1D,
-    GlobalAveragePooling1D,
-    Dropout,
-    Reshape,
-    BatchNormalization,
-)
 from keras.models import Model
-from keras.layers.advanced_activations import LeakyReLU
-from keras.optimizers import SGD
-import keras.backend as K
-from keras.callbacks import CSVLogger
+import keras.ops as ops
 
-from contextlib import redirect_stdout
 from scipy.optimize import minimize
 
 from scipy.signal import savgol_filter
-from models.attlayer import AttentionWeightedAverage
-import time
 # from time import time
 
 
 import re
 
+base_path_X_training = "./faces_extracted/training/"
+base_path_X_validation = "./faces_extracted/validation/"
+base_path_Y_training = "../data/Training/Annotations/"
+base_path_Y_validation = "../data/Validation/Annotations/"
+
+subjects_training = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+subjects_validation = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+stories_training = [2, 4, 5, 8]
+stories_validation = [1]
+
+subject_data = True
+actor_data = False
+
+window_size = 5
+
+save_latent_training = False
+save_predictions_training = False
+save_latent_test = False
+save_predictions_test = True
 
 def sorted_nicely(l):
     """Sort the given iterable in the way that humans expect."""
@@ -76,7 +75,7 @@ def X_window_samples(X, window_size):
     return X_out
 
 
-def create_Y(subjects_list, stories_list):
+def create_Y(subjects_list, stories_list, base_path_Y):
     total_n_videos = len(subjects_list) * len(stories_list)
 
     # storing indexes
@@ -108,7 +107,7 @@ def create_Y(subjects_list, stories_list):
     return Y, indexes
 
 
-def create_X(subjects_list, stories_list, indexes):
+def create_X(subjects_list, stories_list, indexes, base_path_X):
     total_n_videos = len(subjects_list) * len(stories_list)
 
     i = 0
@@ -129,14 +128,14 @@ def create_X(subjects_list, stories_list, indexes):
                 X_video = np.loadtxt(
                     base_path_X
                     + video_name
-                    + ".mp4/Subject_face_landmarks/landmarksSubject.csv",
+                    + "/Subject_face_landmarks/landmarksSubject.csv",
                     delimiter=",",
                 )
             elif actor_data:
                 X_video = np.loadtxt(
                     base_path_X
                     + video_name
-                    + ".mp4/Actor_face_landmarks/landmarksActor.csv",
+                    + "/Actor_face_landmarks/landmarksActor.csv",
                     delimiter=",",
                 )
 
@@ -161,24 +160,38 @@ def create_X(subjects_list, stories_list, indexes):
 def load_dataset(window_size):
     ## Y TRAINING
     print("Processing Y_training")
-    Y_training, indexes_training = create_Y(subjects_training, stories_training)
+    Y_training, indexes_training = create_Y(
+        subjects_training, stories_training, base_path_Y=base_path_Y_training
+    )
     print("Y_training shape = ", Y_training.shape)
     print("indexes_training = ", indexes_training)
 
     ## Y VALIDATION
     print("\nProcessing Y_validation")
-    Y_validation, indexes_validation = create_Y(subjects_validation, stories_validation)
+    Y_validation, indexes_validation = create_Y(
+        subjects_validation, stories_validation, base_path_Y=base_path_Y_validation
+    )
     print("Y_validation shape = ", Y_validation.shape)
     print("indexes_validation = ", indexes_validation)
 
     ## X TRAINING
     print("\nProcessing X_training")
-    X_training = create_X(subjects_training, stories_training, indexes_training)
+    X_training = create_X(
+        subjects_training,
+        stories_training,
+        indexes_training,
+        base_path_X=base_path_X_training,
+    )
     print("X_training shape = ", X_training.shape)
 
     ## X VALIDATION
     print("\nProcessing X_validation")
-    X_validation = create_X(subjects_validation, stories_validation, indexes_validation)
+    X_validation = create_X(
+        subjects_validation,
+        stories_validation,
+        indexes_validation,
+        base_path_X=base_path_X_validation,
+    )
     print("X_validation shape = ", X_validation.shape)
 
     return (
@@ -214,44 +227,54 @@ def ccc(y_true, y_pred):
 
 # losses
 def mean_squared_error(y_true, y_pred):
-    return K.mean(K.square(y_pred - y_true), axis=-1)
+    return ops.mean(ops.square(y_pred - y_true), axis=-1)
 
 
 def ccc_error(y_true, y_pred):
-    y_true = K.flatten(y_true)
-    y_pred = K.flatten(y_pred)
+    # y_true = K.flatten(y_true)
+    # y_pred = K.flatten(y_pred)
+    y_true = ops.reshape(y_true, (ops.shape(y_true)[0], -1))
+    y_pred = ops.reshape(y_pred, (ops.shape(y_pred)[0], -1))
 
-    true_mean = K.mean(y_true)
-    true_variance = K.var(y_true)
-    pred_mean = K.mean(y_pred)
-    pred_variance = K.var(y_pred)
+    true_mean = ops.mean(y_true)
+    true_variance = ops.var(y_true)
+    pred_mean = ops.mean(y_pred)
+    pred_variance = ops.var(y_pred)
 
     x = y_true - true_mean
     y = y_pred - pred_mean
-    rho = K.sum(x * y) / K.sqrt(K.sum(x**2) * K.sum(y**2))
+    
+    # Add epsilon to prevent division by zero in rho calculation
+    epsilon = 1e-8
+    sum_x_sq = ops.sum(x**2)
+    sum_y_sq = ops.sum(y**2)
+    denominator_rho = ops.sqrt(sum_x_sq * sum_y_sq) + epsilon
+    rho = ops.sum(x * y) / denominator_rho
 
-    std_predictions = K.std(y_pred)
-    std_gt = K.std(y_true)
+    std_predictions = ops.std(y_pred)
+    std_gt = ops.std(y_true)
 
+    # Add epsilon to prevent division by zero in CCC calculation
+    denominator_ccc = (std_predictions**2 + std_gt**2 + (pred_mean - true_mean) ** 2) + epsilon
     ccc = (
         2
         * rho
         * std_gt
         * std_predictions
-        / (std_predictions**2 + std_gt**2 + (pred_mean - true_mean) ** 2)
+        / denominator_ccc
     )
     return 1 - ccc
 
 
 def pearson_error(y_true, y_pred):
-    true_mean = K.mean(y_true)
-    true_variance = K.var(y_true)
-    pred_mean = K.mean(y_pred)
-    pred_variance = K.var(y_pred)
+    true_mean = ops.mean(y_true)
+    true_variance = ops.var(y_true)
+    pred_mean = ops.mean(y_pred)
+    pred_variance = ops.var(y_pred)
 
     x = y_true - true_mean
     y = y_pred - pred_mean
-    rho = K.sum(x * y) / K.sqrt(K.sum(x**2) * K.sum(y**2))
+    rho = ops.sum(x * y) / ops.sqrt(ops.sum(x**2) * ops.sum(y**2))
     return 1 - rho
 
 
@@ -321,23 +344,57 @@ def OptimMOrder(datas, mus, sigmas, orders=range(1, 7)):
     return (orders[i], cutoffs[i], rhos[i])
 
 
+# class Metrics(keras.callbacks.Callback):
+#     def on_train_begin(self, logs={}):
+#         self._data = []
+#         self.best_ccc = -1
+#
+#     def on_epoch_end(self, batch, logs={}):
+#         #          X_val, y_val = self.validation_data[:len(modalities)], self.validation_data[len(modalities)]
+#         X_val, y_val = self.validation_data[0], self.validation_data[1]
+#
+#         y_predict = np.asarray(model.predict(X_val, batch_size=batch_size))
+#
+#         ccc_result, rho_result = ccc(y_val, y_predict)
+#
+#         self._data.append({"ccc": ccc_result, "rho": rho_result})
+#
+#         if ccc_result > self.best_ccc:
+#             model.save(filepath)
+#             self.best_ccc = ccc_result
+#             print(
+#                 "ccc = %f,  pearson=%f,  (new model!)" % (ccc_result[0], rho_result[0])
+#             )
+#         else:
+#             print("ccc = %f,  pearson=%f" % (ccc_result[0], rho_result[0]))
+#
+#         return
+#
+#     def get_data(self):
+#         return self._data
 class Metrics(keras.callbacks.Callback):
+    def __init__(self, X_val, y_val, filepath, batch_size):
+        super(Metrics, self).__init__()
+        self.X_val = X_val
+        self.y_val = y_val
+        self.filepath = filepath
+        self.batch_size = batch_size
+        self._data = []
+        self.best_ccc = -1
+
     def on_train_begin(self, logs={}):
         self._data = []
         self.best_ccc = -1
 
     def on_epoch_end(self, batch, logs={}):
-        #          X_val, y_val = self.validation_data[:len(modalities)], self.validation_data[len(modalities)]
-        X_val, y_val = self.validation_data[0], self.validation_data[1]
+        y_predict = np.asarray(self.model.predict(self.X_val, batch_size=self.batch_size))
 
-        y_predict = np.asarray(model.predict(X_val, batch_size=batch_size))
-
-        ccc_result, rho_result = ccc(y_val, y_predict)
+        ccc_result, rho_result = ccc(self.y_val, y_predict)
 
         self._data.append({"ccc": ccc_result, "rho": rho_result})
 
         if ccc_result > self.best_ccc:
-            model.save(filepath)
+            self.model.save(self.filepath + "best_model.h5")
             self.best_ccc = ccc_result
             print(
                 "ccc = %f,  pearson=%f,  (new model!)" % (ccc_result[0], rho_result[0])
@@ -453,12 +510,12 @@ def apply_savgol_filter(x, window_length, polyorder):
     return savgol_filter(x, window_length, polyorder)
 
 
-def save_predictions():
+def save_predictions(model, Y_training):
     save_name = "FINAL"
     if save_latent_training or save_predictions_training:
-        base_path_X = "../omg_data/faces_extracted_without_pics/"
+        base_path_X= "./faces_extracted/training/"
         subjects_predictions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        stories_predictions = [1, 2, 4, 5, 8]
+        stories_predictions = [2, 4, 5, 8]
         predictions_n = len(subjects_predictions) * len(stories_predictions)
 
         if save_latent_training:
@@ -475,9 +532,9 @@ def save_predictions():
             model_lat = model
 
     elif save_latent_test or save_predictions_test:
-        base_path_X = "../omg_data/faces_extracted_test_without_pics/"
+        base_path_X= "./faces_extracted/validation/"
         subjects_predictions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        stories_predictions = [3, 6, 7]
+        stories_predictions = [1]
         predictions_n = len(subjects_predictions) * len(stories_predictions)
 
         if save_latent_test:
@@ -513,7 +570,7 @@ def save_predictions():
                 X_video = np.loadtxt(
                     base_path_X
                     + video_name
-                    + ".mp4/Subject_face_landmarks/landmarksSubject.csv",
+                    + "/Subject_face_landmarks/landmarksSubject.csv",
                     delimiter=",",
                 )
             elif save_latent_test or save_predictions_test:

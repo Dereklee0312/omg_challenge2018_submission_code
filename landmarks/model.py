@@ -4,14 +4,11 @@ from keras.layers import (
     Input,
     Dense,
     Conv1D,
-    MaxPooling1D,
     GlobalAveragePooling1D,
     Dropout,
-    Reshape,
     BatchNormalization,
 )
 from keras.models import Model
-from keras.layers.advanced_activations import LeakyReLU
 
 
 def build_model_LSTM():
