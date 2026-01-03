@@ -1,5 +1,7 @@
 myenv
-data
+data/text
+data/Training
+data/Validation
 transcript/vectors/val2/text
 logs/lexicons_2025-08-26_21_29_36/train
 .vscode
