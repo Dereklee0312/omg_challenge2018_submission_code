@@ -4,6 +4,7 @@ import numpy as np
 import os
 import re
 import urllib.request
+from pathlib import Path
 
 # Directories
 srt_dir = "data/srt"  # SRT files
@@ -17,25 +18,59 @@ aligned_npy_dir = "vectors/val2/text_aligned"  # Aligned frame-level NPYs
 for d in [tsv_dir, csv_dir, npy_dir, aligned_npy_dir, lexicon_dir]:
     os.makedirs(d, exist_ok=True)
 
+
+def check_directories() -> bool:
+    srt_folder = Path(srt_dir)
+    training_annotation_folder = Path(training_annotation_dir)  # Training Valence CSVs
+    validation_annotation_folder = Path(
+        validation_annotation_dir
+    )  # Validation Valence CSVs
+    lexicon_folder = Path(lexicon_dir)
+    tsv_folder = Path(tsv_dir)  # Intermediate TSVs
+    csv_folder = Path(csv_dir)  # Intermediate CSVs
+    npy_folder = Path(npy_dir)  # Per-word NPYs
+    aligned_npy_folder = Path(aligned_npy_dir)  # Aligned frame-level NPYs
+
+    folder_lst = [
+        srt_folder,
+        validation_annotation_folder,
+        lexicon_folder,
+        training_annotation_folder,
+        tsv_folder,
+        csv_folder,
+        npy_folder,
+        aligned_npy_folder,
+    ]
+    
+    for folder in folder_lst:
+        if folder.is_dir():
+            print(f"The folder '{folder}' exists.")
+        else:
+            os.makedirs(folder, exist_ok=True)
+
 # Step 1: SRT to TSV
 def time_to_seconds(time_str):
     try:
-        hours, minutes, seconds_ms = time_str.split(':')
-        seconds, ms = seconds_ms.split(',')
+        hours, minutes, seconds_ms = time_str.split(":")
+        seconds, ms = seconds_ms.split(",")
         return int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(ms) / 1000
     except ValueError:
         print(f"Invalid timestamp format: {time_str}")
         return 0
 
+
 def time_to_frame(total_seconds, fps):
     return int(total_seconds * fps)
 
+
 def srt_to_tsv(srt_file, annotation_file, output_tsv):
     try:
-        gt_df = pd.read_csv(annotation_file, header=0, dtype=float, on_bad_lines='skip')
+        gt_df = pd.read_csv(annotation_file, header=0, dtype=float, on_bad_lines="skip")
         gt_valence = gt_df.iloc[:, 0].dropna().values
         if len(gt_valence) == 0:
-            print(f"Empty or invalid valence CSV: {annotation_file}. Using fallback valence.")
+            print(
+                f"Empty or invalid valence CSV: {annotation_file}. Using fallback valence."
+            )
             gt_valence = np.array([])
 
         subs = pysrt.open(srt_file)
@@ -45,18 +80,22 @@ def srt_to_tsv(srt_file, annotation_file, output_tsv):
 
         last_end_sec = time_to_seconds(str(subs[-1].end)) if subs else 0
         if last_end_sec <= 0 or len(gt_valence) <= 0:
-            print(f"Invalid duration or valence data for {srt_file}. Falling back to default FPS: 25.")
+            print(
+                f"Invalid duration or valence data for {srt_file}. Falling back to default FPS: 25."
+            )
             fps = 25
         else:
             fps = len(gt_valence) / last_end_sec
-            print(f"Computed FPS for {srt_file}: {fps:.2f} (frames: {len(gt_valence)}, duration: {last_end_sec}s)")
+            print(
+                f"Computed FPS for {srt_file}: {fps:.2f} (frames: {len(gt_valence)}, duration: {last_end_sec}s)"
+            )
 
         words = []
         valences = []
 
         for sub in subs:
             text = sub.text.strip()
-            text = re.sub(r'[^\w\s]', '', text)
+            text = re.sub(r"[^\w\s]", "", text)
             sub_words = text.split()
             if not sub_words:
                 continue
@@ -92,8 +131,11 @@ def srt_to_tsv(srt_file, annotation_file, output_tsv):
     except Exception as e:
         print(f"Error processing {srt_file}: {e}")
 
+
 # Step 2: TSV to Lexicon CSV
-def tsv_to_lexicon_csv(tsv_file, output_csv, df1, df2, column_names_lex1, column_names_lex2):
+def tsv_to_lexicon_csv(
+    tsv_file, output_csv, df1, df2, column_names_lex1, column_names_lex2
+):
     try:
         emotions_story = []
         l1 = [0] * len(column_names_lex1)
@@ -125,11 +167,12 @@ def tsv_to_lexicon_csv(tsv_file, output_csv, df1, df2, column_names_lex1, column
             l_tot = [str(x) for x in l1 + l2]
             emotions_story.append(",".join(l_tot))
 
-        with open(output_csv, 'w') as out:
+        with open(output_csv, "w") as out:
             out.write("\n".join(emotions_story))
         print(f"Saved {output_csv}")
     except Exception as e:
         print(f"Error processing {tsv_file}: {e}")
+
 
 # Step 3: CSV to Per-word NPY
 def csv_to_npy(csv_file, output_npy):
@@ -140,6 +183,7 @@ def csv_to_npy(csv_file, output_npy):
         print(f"Saved {output_npy}")
     except Exception as e:
         print(f"Error processing {csv_file}: {e}")
+
 
 # Step 4: Upsample to Frame-level Aligned NPY
 def upsample_to_frames(lex_npy, ann_csv, output_aligned_npy):
@@ -156,7 +200,7 @@ def upsample_to_frames(lex_npy, ann_csv, output_aligned_npy):
         frame_idx = 0
         for i in range(num_words):
             word_frames = frames_per_word + (1 if i < remain else 0)
-            aligned_features[frame_idx:frame_idx + word_frames] = features[i]
+            aligned_features[frame_idx : frame_idx + word_frames] = features[i]
             frame_idx += word_frames
 
         if frame_idx < num_frames:
@@ -167,15 +211,27 @@ def upsample_to_frames(lex_npy, ann_csv, output_aligned_npy):
     except Exception as e:
         print(f"Error processing {lex_npy}: {e}")
 
+
 # Main: Run full pipeline
 def main():
     df1 = pd.read_csv(os.path.join(lexicon_dir, "Ratings_Warriner_et_al.csv"))
-    df2 = pd.read_csv(os.path.join(lexicon_dir, "DepecheMood_english_token_full.tsv"), delimiter="\t")
+    df2 = pd.read_csv(
+        os.path.join(lexicon_dir, "DepecheMood_english_token_full.tsv"), delimiter="\t"
+    )
     column_names_lex1 = ["V.Mean.Sum", "A.Mean.Sum", "D.Mean.Sum"]
-    column_names_lex2 = ["AFRAID", "AMUSED", "ANGRY", "ANNOYED", "DONT_CARE", "HAPPY", "INSPIRED", "SAD"]
+    column_names_lex2 = [
+        "AFRAID",
+        "AMUSED",
+        "ANGRY",
+        "ANNOYED",
+        "DONT_CARE",
+        "HAPPY",
+        "INSPIRED",
+        "SAD",
+    ]
 
     subjects = range(1, 11)
-    
+
     # Process training data
     print("Processing training data...")
     training_stories = set()
@@ -188,7 +244,7 @@ def main():
                     training_stories.add(story_num)
                 except ValueError:
                     continue
-    
+
     for sub in subjects:
         for st in training_stories:
             story_name = f"Subject_{sub}_Story_{st}"
@@ -201,10 +257,12 @@ def main():
 
             if os.path.exists(ann_file):
                 srt_to_tsv(srt_file, ann_file, tsv_file)
-                tsv_to_lexicon_csv(tsv_file, csv_file, df1, df2, column_names_lex1, column_names_lex2)
+                tsv_to_lexicon_csv(
+                    tsv_file, csv_file, df1, df2, column_names_lex1, column_names_lex2
+                )
                 csv_to_npy(csv_file, npy_file)
                 upsample_to_frames(npy_file, ann_file, aligned_npy_file)
-    
+
     # Process validation data
     print("Processing validation data...")
     validation_stories = set()
@@ -217,7 +275,7 @@ def main():
                     validation_stories.add(story_num)
                 except ValueError:
                     continue
-    
+
     for sub in subjects:
         for st in validation_stories:
             story_name = f"Subject_{sub}_Story_{st}"
@@ -230,9 +288,13 @@ def main():
 
             if os.path.exists(ann_file):
                 srt_to_tsv(srt_file, ann_file, tsv_file)
-                tsv_to_lexicon_csv(tsv_file, csv_file, df1, df2, column_names_lex1, column_names_lex2)
+                tsv_to_lexicon_csv(
+                    tsv_file, csv_file, df1, df2, column_names_lex1, column_names_lex2
+                )
                 csv_to_npy(csv_file, npy_file)
                 upsample_to_frames(npy_file, ann_file, aligned_npy_file)
 
+
 if __name__ == "__main__":
+    check_directories()
     main()

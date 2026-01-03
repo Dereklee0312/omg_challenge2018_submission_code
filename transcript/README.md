@@ -8,3 +8,8 @@ The preprocessing.py script takes in input the json files generated with [Amazon
 
 ### training
 The 11 dimensions vectors are then computed as a sequence in the LSTM_lexicons.py script, that takes in input the files generated in the preprocessing phase, and trains an LSTM with an attention module in output. Also the subject are taken in account with a learned embedding of dimension 2 that is concatenated to the LSTM output just before the final affine transformation. 
+
+
+# Prerequisites
+1. Ensure that the srt files are in the transcript/data/srt folder
+2. The Training and Validation annotations should be in the root data folder.
