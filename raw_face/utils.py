@@ -1,14 +1,19 @@
 import numpy as np
 
 import tensorflow as tf
-import keras.backend as K
+import tensorflow.keras.backend as K
 import keras.callbacks as cb
+import time
 
+from os import listdir
+
+from scipy.stats import pearsonr
+from skimage import io
+from skimage.transform import resize
+from skimage.color import rgb2gray
 
 PATIENCE = 3
 
-
-import time
 
 day_time = time.strftime("%Y-%m-%d_%H_%M_%S")
 
@@ -57,6 +62,7 @@ def ccc_error(y_true, y_pred):
     return 1 - ccc
 
 
+# Not being used in main
 def norm_pred(lbl, pred):
     s0 = np.std(lbl.flatten())
     V = pred.flatten()
@@ -83,7 +89,7 @@ def make_id_vector(str_n_s, sbj_n_s, lbl_path):
 
             id_s.append(id)
 
-    return id_s
+    return np.concatenate(id_s)
 
 
 class Metrics(cb.Callback):
@@ -173,4 +179,66 @@ class light_id_generator:
                     yb[i, :] = self.y[ri + self.seq_len, :]
                     zb[i, :] = self.z[ri + self.seq_len, :]
 
-                yield [xb, zb], yb
+                yield {"main_input": xb, "aux_input": zb}, yb
+
+
+# def create_img_vec(img_path,sbj_n,str_n,down_sampling):
+#
+#     path = img_path.format(sbj_n,str_n)
+#     frames_n = listdir(path)
+#     sorted_frames_n = list(np.array(frames_n)[np.argsort([int(x[:-4]) for x in frames_n])[::down_sampling]])
+#
+#     img_s = []
+#
+#     for f_n in sorted_frames_n:
+#
+#         iii = io.imread(path+f_n)
+#         iii = (iii-np.mean(iii))/np.std(iii)
+#         img_s.append(iii[:,:,np.newaxis])
+#
+#     return np.array(img_s)
+
+
+def create_img_vec(img_path, sbj_n, str_n, down_sampling, target_size=(128, 128)):
+    path = img_path.format(sbj_n, str_n)
+    frames_n = listdir(path)
+    sorted_frames_n = list(
+        np.array(frames_n)[np.argsort([int(x[:-4]) for x in frames_n])[::down_sampling]]
+    )
+
+    img_s = []
+    for f_n in sorted_frames_n:
+        iii = io.imread(path + f_n)
+        if iii.ndim == 3:  # Convert RGB to grayscale
+            iii = rgb2gray(iii)
+        iii = resize(
+            iii, target_size, anti_aliasing=True
+        )  # Resize to consistent dimensions
+        iii = (iii - np.mean(iii)) / np.std(iii)
+        img_s.append(iii[:, :, np.newaxis])
+
+    return np.array(img_s)
+
+
+def create_img_dataset(n, img_x, img_y, ch_n, str_n_s, sbj_n_s, down_sampling=5):
+    img_path = (
+        "../landmarks/faces_extracted/training/Subject_{0}_Story_{1}/Subject_face/"
+    )
+    # img_mat = np.zeros([n,128,128,1])
+    img_mat = np.zeros([n, img_x, img_y, ch_n])
+    idx_srt = 0
+
+    for str_n in str_n_s:
+        for sbj_n in sbj_n_s:
+            img_s = create_img_vec(
+                img_path, sbj_n, str_n, down_sampling, target_size=(img_x, img_y)
+            )
+            idx_end = idx_srt + img_s.shape[0]
+
+            img_mat[idx_srt:idx_end, :, :, :] = img_s
+
+            idx_srt = idx_end
+
+            print(str_n, sbj_n)
+
+    return img_mat

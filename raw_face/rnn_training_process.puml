@@ -1,0 +1,215 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam nodesep 50
+skinparam ranksep 60
+skinparam dpi 300
+skinparam arrowThickness 1.5
+
+title RNN/LSTM Training Process Flow\n(Generic Pipeline for Empathy Prediction Models)
+
+|Data Preparation|
+start
+:Load Raw Data;
+note right
+  - Video frames (raw_face)
+  - Audio features (speech)
+  - Facial landmarks (landmarks)
+  - Text transcripts (transcript)
+end note
+
+:Extract Features per Modality;
+note right
+  **Feature Extraction:**
+  • Raw Face: Image sequences
+  • Speech: Mel spectrograms
+  • Landmarks: 68 facial points
+  • Transcript: Word embeddings
+end note
+
+:Create Sequences with Sliding Window;
+note right
+  **Windowing Parameters:**
+  • seq_len/window_size: 10-100 frames
+  • stride: 1-50 frames
+  • Captures temporal context
+end note
+
+:Load Annotation Labels (Valence);
+note right
+  **Labels:**
+  • Continuous values [-1, 1]
+  • Per-frame annotations
+  • From Subject_{n}_Story_{m}.csv
+end note
+
+:Split into Train/Validation Sets;
+note right
+  **Typical Split:**
+  • Train: Stories 1, 4, 5, 8
+  • Validation: Story 2
+  • Subjects: 1-10
+end note
+
+|Model Definition|
+:Define Model Architecture;
+note right
+  **Architecture Options:**
+  1. LSTM with Attention
+  2. Bidirectional GRU
+  3. Conv3D + Dense
+  4. Conv1D + LSTM
+end note
+
+:Add Auxiliary Inputs (Optional);
+note right
+  **Auxiliary Data:**
+  • Subject ID embeddings
+  • Metadata vectors
+  • Late fusion strategy
+end note
+
+:Compile Model with CCC Loss;
+note right
+  **Loss Function:**
+  CCC (Concordance Correlation Coefficient)
+  loss = 1 - CCC
+  
+  **Optimizer:**
+  Adam (lr=0.0001)
+end note
+
+|Training Loop|
+:Initialize Callbacks;
+note right
+  **Callbacks:**
+  • ModelCheckpoint (save best)
+  • EarlyStopping (patience=5-20)
+  • TensorBoard (logging)
+  • Metrics (custom CCC tracking)
+end note
+
+:Create Data Generators;
+note right
+  **Generator Benefits:**
+  • Memory efficient
+  • On-the-fly augmentation
+  • Random sampling per epoch
+  • Batch generation
+end note
+
+repeat :Start New Epoch;
+
+  repeat
+    :Generate Training Batch;
+    note right
+      **Batch Creation:**
+      • Random sequence indices
+      • Shape: [batch_size, seq_len, features]
+      • Corresponding labels
+    end note
+    
+    :Forward Pass;
+    note right
+      Input → RNN layers → Dense layers → Output
+      Output shape: [batch_size, 1]
+    end note
+    
+    :Calculate CCC Loss;
+    note right
+      **CCC Formula:**
+      ρ = Pearson correlation
+      CCC = 2ρσ_y σ_ŷ / (σ_y² + σ_ŷ² + (μ_y - μ_ŷ)²)
+    end note
+    
+    :Backward Pass (Backpropagation);
+    note right
+      • Compute gradients
+      • Update weights via Adam
+      • Apply dropout regularization
+    end note
+    
+    :Update Model Weights;
+    
+  repeat while (more batches in epoch?) is (yes)
+  ->no;
+
+  :Epoch Complete;
+
+  |Validation|
+  :Run Validation;
+  note right
+    **Validation Process:**
+    • No gradient updates
+    • Full validation set
+    • Calculate val_loss
+  end note
+
+  :Calculate Validation CCC;
+  note right
+    **Metrics Callback:**
+    • Predict on validation data
+    • Compute CCC and Pearson ρ
+    • Print: "ccc = X, pearson = Y"
+  end note
+
+  if (Best model so far?) then (yes)
+    :Save Model Checkpoint;
+    note right
+      Save to:
+      • best_model.h5
+      • Or timestamped file
+    end note
+  else (no)
+  endif
+
+  if (Early stopping criteria met?) then (yes)
+    break
+  else (no)
+  endif
+
+repeat while (more epochs?) is (yes)
+->no;
+
+|Post-Training|
+:Load Best Model Weights;
+
+:Generate Predictions on Test Set;
+
+:Apply Post-Processing (Optional);
+note right
+  **Tricks:**
+  • Normalize predictions
+  • Match train statistics
+  • Smooth predictions
+  • Median filtering
+end note
+
+:Calculate Final Metrics;
+note right
+  **Final Evaluation:**
+  • CCC on test set
+  • Pearson correlation
+  • Per-subject analysis
+end note
+
+:Save Predictions & Results;
+note right
+  **Outputs:**
+  • Prediction CSV files
+  • Training history plots
+  • Model architecture diagram
+  • Performance metrics
+end note
+
+stop
+
+legend right
+  |= Symbol |= Meaning |
+  | Rectangle | Process/Action |
+  | Diamond | Decision Point |
+  | Note | Additional Info |
+endlegend
+
+@enduml
+

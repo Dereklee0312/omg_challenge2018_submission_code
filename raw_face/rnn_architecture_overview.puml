@@ -1,0 +1,229 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam nodesep 60
+skinparam ranksep 80
+skinparam dpi 300
+skinparam arrowThickness 1.5
+skinparam packageStyle rectangle
+
+title RNN/LSTM Architecture Overview\nOMG Empathy Challenge 2018 - Multi-Modal Emotion Recognition
+
+package "1. Speech RNN Model\n(Bidirectional GRU)" as SpeechModel {
+  [Input Audio Features\n(time_dim, features_dim)\nMel spectrograms] as speech_in
+  
+  [Bidirectional GRU\n250 units\nreturn_sequences=True\nCaptures temporal patterns] as gru
+  
+  [Batch Normalization\nStabilizes training] as bn_speech
+  
+  [TimeDistributed Dense\n8 units, linear\nPer-timestep transformation] as td_dense
+  
+  [Dropout 0.3\nRegularization] as drop_speech
+  
+  [Flatten\nConvert to 1D vector] as flat_speech
+  
+  [Dense Output\nSEQ_LENGTH units\nlinear activation\nSequence predictions] as out_speech
+  
+  speech_in --> gru
+  gru --> bn_speech
+  bn_speech --> td_dense
+  td_dense --> drop_speech
+  drop_speech --> flat_speech
+  flat_speech --> out_speech
+  
+  note right of gru
+    **Bidirectional GRU:**
+    • Processes sequence forward & backward
+    • Captures context from both directions
+    • 2 × 250 = 500 total units
+  end note
+  
+  note right of out_speech
+    **Output:**
+    Predicts valence for entire sequence
+    Loss: Batch CCC (custom)
+  end note
+}
+
+package "2. Transcript LSTM Model\n(LSTM with Attention + Subject Embedding)" as TranscriptModel {
+  [Subject ID Input\n(1,)\nInteger subject identifier] as subj_in
+  
+  [Text Sequence Input\n(window_size, embedding_size)\nWord embeddings (100 × 11)] as text_in
+  
+  [Embedding Layer\n11 subjects → 2D vector\nLearnable subject representation] as embed
+  
+  [Dropout 0.2\nInitial regularization] as drop_init
+  
+  [LSTM Layer\n64 units\nreturn_sequences=True\nSequence modeling] as lstm
+  
+  [Attention Mechanism\nWeighted average\nFocuses on important timesteps] as attention
+  
+  [Flatten Subject Embedding\nConvert to 1D] as flat_subj
+  
+  [Concatenate\nLSTM output + Subject embedding\nLate fusion] as concat_trans
+  
+  [Dense 32\nactivation=relu\nIntegration layer] as dense_trans
+  
+  [Dropout 0.2\nFinal regularization] as drop_final
+  
+  [Dense 1\nlinear activation\nValence prediction] as out_trans
+  
+  subj_in --> embed
+  embed --> flat_subj
+  text_in --> drop_init
+  drop_init --> lstm
+  lstm --> attention
+  attention --> concat_trans
+  flat_subj --> concat_trans
+  concat_trans --> dense_trans
+  dense_trans --> drop_final
+  drop_final --> out_trans
+  
+  note right of attention
+    **Attention Mechanism:**
+    • Learns importance weights per timestep
+    • Softmax normalization
+    • Weighted sum of LSTM outputs
+    • Improves interpretability
+  end note
+  
+  note right of concat_trans
+    **Late Fusion:**
+    Subject identity merged after
+    sequence processing
+  end note
+}
+
+package "3. Landmarks CNN-RNN Model\n(Conv1D for Temporal Features)" as LandmarksModel {
+  [Facial Landmarks Input\n(time_step_length, N_features)\n68 facial points × coordinates] as land_in
+  
+  [Conv1D 100\nkernel=2, relu\nLocal temporal patterns] as conv1_land
+  
+  [Batch Normalization] as bn1_land
+  
+  [Conv1D 100\nkernel=2, relu\nDeeper patterns] as conv2_land
+  
+  [Conv1D 160\nkernel=2, relu\nHigher capacity] as conv3_land
+  
+  [Conv1D 160\nkernel=2, relu\nFinal convolution] as conv4_land
+  
+  [Global Average Pooling\nAggregates temporal info\nReduces to fixed size] as gap_land
+  
+  [Dense 32\nrelu, name="last_dense"\nHigh-level features] as dense_land
+  
+  [Dense 1\nlinear activation\nValence output] as out_land
+  
+  land_in --> conv1_land
+  conv1_land --> bn1_land
+  bn1_land --> conv2_land
+  conv2_land --> conv3_land
+  conv3_land --> conv4_land
+  conv4_land --> gap_land
+  gap_land --> dense_land
+  dense_land --> out_land
+  
+  note right of conv1_land
+    **Conv1D Architecture:**
+    • Treats time as spatial dimension
+    • Learns temporal filters
+    • More efficient than LSTM
+    • Good for structured sequences
+  end note
+  
+  note right of gap_land
+    **Global Average Pooling:**
+    Reduces variable-length sequences
+    to fixed-size representation
+  end note
+}
+
+package "4. Raw Face 3D-CNN Model\n(Conv3D + ID Fusion)" as RawFaceModel {
+  [Video Sequence Input\n(seq_len, img_x, img_y, ch_n)\n10 × 48 × 48 × 1] as video_in
+  
+  [Subject ID Vector\n(id_len,)\nOne-hot encoded] as id_in
+  
+  [Conv3D Blocks\n32 → 64 filters\nSpatiotemporal features] as conv3d
+  
+  [MaxPooling3D + BatchNorm\nDownsampling & stabilization] as pool3d
+  
+  [Flatten\nConvert to 1D] as flat_video
+  
+  [Dense 512\nrelu, name="conv_out"\nBottleneck features] as dense_video
+  
+  [Dense 3\nrelu\nID processing] as dense_id
+  
+  [Concatenate\nVideo features + ID\nLate fusion] as concat_video
+  
+  [Dense 128 → 32\nrelu + Dropout 0.6\nRegression head] as dense_head
+  
+  [Dense 1\nlinear activation\nValence output] as out_video
+  
+  video_in --> conv3d
+  conv3d --> pool3d
+  pool3d --> flat_video
+  flat_video --> dense_video
+  id_in --> dense_id
+  dense_video --> concat_video
+  dense_id --> concat_video
+  concat_video --> dense_head
+  dense_head --> out_video
+  
+  note right of conv3d
+    **3D Convolutions:**
+    • Processes spatial (x,y) and temporal (t)
+    • Kernel: (3,3,3)
+    • Captures motion patterns
+    • Alternative to CNN+RNN
+  end note
+  
+  note bottom of RawFaceModel
+    **Note:** This is technically not an RNN,
+    but uses 3D convolutions for temporal modeling.
+    Included for comparison with RNN approaches.
+  end note
+}
+
+' Cross-model connections and comparisons
+note as N1
+  **Common Design Patterns:**
+  1. Sequence input (temporal data)
+  2. Feature extraction (Conv/RNN layers)
+  3. Optional attention mechanism
+  4. Late fusion with metadata (Subject ID)
+  5. Regression head (Dense layers)
+  6. Single output (valence prediction)
+  7. CCC loss function
+  8. Dropout regularization
+end note
+
+note as N2
+  **RNN vs CNN for Temporal Modeling:**
+  
+  |= Approach |= Pros |= Cons |
+  | LSTM/GRU | Long-term dependencies, flexible length | Slow, sequential |
+  | Conv1D | Fast, parallel, good for local patterns | Limited long-range |
+  | Conv3D | Unified spatiotemporal, no separate RNN | High memory, rigid length |
+  | Attention | Interpretable, focuses on key moments | Adds complexity |
+end note
+
+note as N3
+  **Training Configuration:**
+  • Batch sizes: 32-512
+  • Epochs: 100-1000
+  • Patience: 5-20
+  • Learning rate: 0.0001
+  • Optimizer: Adam
+  • Loss: CCC (Concordance Correlation Coefficient)
+  • Metrics: CCC, Pearson correlation
+end note
+
+legend right
+  |= Model |= Input Type |= Temporal Method |
+  | Speech | Audio features | Bidirectional GRU |
+  | Transcript | Text embeddings | LSTM + Attention |
+  | Landmarks | Facial points | Conv1D stack |
+  | Raw Face | Video frames | Conv3D |
+endlegend
+
+@enduml
+
