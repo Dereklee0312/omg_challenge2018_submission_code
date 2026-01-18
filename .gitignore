@@ -43,3 +43,5 @@ landmarks/experiment_2026-01-03_23_47_43
 landmarks/experiment_2026-01-04_13_05_48
 landmarks/predictions_test_FINAL
 raw_face/model
+full_body_extracted
+*/__pycache__

@@ -1,33 +1,12 @@
-from os import listdir, makedirs
-
-from keras import losses
-from keras.utils import to_categorical, Sequence
+from pathlib import Path
 
 import numpy as np
-import tensorflow as tf
 import keras.backend as K
 import keras.callbacks as cb
 
-from keras.preprocessing.image import ImageDataGenerator
-from keras.preprocessing import image
-
-import pandas as pd
-
 from skimage import io
-from skimage.transform import resize
-from skimage.color import rgb2gray
-
-from sklearn.preprocessing import MinMaxScaler
 
 from scipy.stats import pearsonr
-
-from scipy.signal import decimate
-
-
-from resnet3d import Resnet3DBuilder
-
-
-PATIENCE = 3
 
 
 import time
@@ -36,10 +15,10 @@ day_time = time.strftime("%Y-%m-%d_%H_%M_%S")
 
 
 def ccc(y_true, y_pred):
+    y_true = np.ravel(y_true)
+    y_pred = np.ravel(y_pred)
     true_mean = np.mean(y_true)
-    true_variance = np.var(y_true)
     pred_mean = np.mean(y_pred)
-    pred_variance = np.var(y_pred)
 
     rho, _ = pearsonr(y_pred, y_true)
     std_predictions = np.std(y_pred)
@@ -50,7 +29,7 @@ def ccc(y_true, y_pred):
         * rho
         * std_gt
         * std_predictions
-        / (std_predictions**2 + std_gt**2 + (pred_mean - true_mean) ** 2)
+        / (std_predictions**2 + std_gt**2 + (pred_mean - true_mean) ** 2 + 1e-8)
     )
 
     return ccc, rho
@@ -58,13 +37,11 @@ def ccc(y_true, y_pred):
 
 def ccc_error(y_true, y_pred):
     true_mean = K.mean(y_true)
-    true_variance = K.var(y_true)
     pred_mean = K.mean(y_pred)
-    pred_variance = K.var(y_pred)
 
     x = y_true - true_mean
     y = y_pred - pred_mean
-    rho = K.sum(x * y) / K.sqrt(K.sum(x**2) * K.sum(y**2))
+    rho = K.sum(x * y) / (K.sqrt(K.sum(x**2) * K.sum(y**2)) + K.epsilon())
 
     std_predictions = K.std(y_pred)
     std_gt = K.std(y_true)
@@ -74,7 +51,7 @@ def ccc_error(y_true, y_pred):
         * rho
         * std_gt
         * std_predictions
-        / (std_predictions**2 + std_gt**2 + (pred_mean - true_mean) ** 2)
+        / (std_predictions**2 + std_gt**2 + (pred_mean - true_mean) ** 2 + K.epsilon())
     )
     return 1 - ccc
 
@@ -85,12 +62,12 @@ class Metrics(cb.Callback):
 
     def on_epoch_end(self, batch, logs={}):
         X_val, y_val = self.validation_data[0], self.validation_data[1]
-        y_predict = np.asarray(model.predict(X_val))
+        y_predict = np.asarray(self.model.predict(X_val, verbose=0))
 
         ccc_result, rho_result = ccc(y_val, y_predict)
 
         self._data.append({"ccc": ccc_result, "rho": rho_result})
-        print("ccc = %f,  pearson=%f" % (ccc_result[0], rho_result[0]))
+        print("ccc = %f,  pearson=%f" % (ccc_result, rho_result))
         return
 
     def get_data(self):
@@ -109,7 +86,7 @@ def moving_avg(x, win=300):
 def moving_avg_ctr(x, win=300):
     x_av = np.zeros(len(x))
 
-    for t in range(int(win / 2), int(len(x - win / 2))):
+    for t in range(int(win / 2), int(len(x) - win / 2)):
         x_av[t] = np.mean(x[t - int(win / 2) : t + int(win / 2)])
 
     return x_av
@@ -128,25 +105,29 @@ def norm_pred(lbl, pred):
 
 
 def create_img_vec(img_path, sbj_n, str_n, down_sampling):
-    path = img_path.format(sbj_n, str_n)
-    frames_n = listdir(path)
-    sorted_frames_n = list(
-        np.array(frames_n)[np.argsort([int(x[:-4]) for x in frames_n])[::down_sampling]]
-    )
+    path = Path(img_path.format(sbj_n, str_n, subject=sbj_n, story=str_n))
+    frames_n = [p.name for p in path.iterdir() if p.is_file()]
+    sorted_frames_n = [
+        name
+        for name in np.array(frames_n)[
+            np.argsort([int(x[:-4]) for x in frames_n])[::down_sampling]
+        ]
+    ]
 
     img_s = []
 
     for f_n in sorted_frames_n:
-        iii = io.imread(path + f_n)
-        iii = (iii - np.mean(iii)) / np.std(iii)
+        iii = io.imread(path / f_n)
+        mean = np.mean(iii)
+        std = np.std(iii)
+        iii = (iii - mean) if std == 0 else (iii - mean) / std
         img_s.append(iii[:, :, np.newaxis])
 
     return np.array(img_s)
 
 
 import numpy as np
-from scipy.signal import butter, lfilter, freqz
-import matplotlib.pyplot as plt
+from scipy.signal import butter, lfilter
 
 
 def butter_lowpass(cutoff, fs, order=5):
@@ -216,7 +197,7 @@ class light_generator:
 
         self.idx_s = np.arange(self.sample_size - self.seq_len)
         self.batch_size = batch_size
-        self.stp_per_epoch = int(self.sample_size / self.batch_size)
+        self.stp_per_epoch = max(1, int(self.sample_size / self.batch_size))
 
     def generate(self):
         while True:
@@ -235,8 +216,10 @@ class light_generator:
                 yield xb, yb
 
 
-def create_img_dataset(n, img_x, img_y, ch_n, str_n_s, sbj_n_s, down_sampling=5):
-    img_mat = np.zeros([n, 128, 128, 1])
+def create_img_dataset(
+    img_path, n, img_x, img_y, ch_n, str_n_s, sbj_n_s, down_sampling=5
+):
+    img_mat = np.zeros([n, img_x, img_y, ch_n], dtype=np.float32)
     idx_srt = 0
 
     for str_n in str_n_s:
