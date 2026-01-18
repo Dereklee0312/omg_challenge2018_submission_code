@@ -1,10 +1,13 @@
 from pathlib import Path
+import re
 
 import numpy as np
 import keras.backend as K
 import keras.callbacks as cb
 
 from skimage import io
+from skimage.color import rgb2gray
+from skimage.transform import resize
 
 from scipy.stats import pearsonr
 
@@ -104,24 +107,41 @@ def norm_pred(lbl, pred):
     return norm_pred
 
 
-def create_img_vec(img_path, sbj_n, str_n, down_sampling):
+def create_img_vec(img_path, sbj_n, str_n, down_sampling, img_x, img_y):
     path = Path(img_path.format(sbj_n, str_n, subject=sbj_n, story=str_n))
+    if not path.exists():
+        raise FileNotFoundError(f"Image path does not exist: {path}")
     frames_n = [p.name for p in path.iterdir() if p.is_file()]
-    sorted_frames_n = [
-        name
-        for name in np.array(frames_n)[
-            np.argsort([int(x[:-4]) for x in frames_n])[::down_sampling]
-        ]
-    ]
+    indexed = []
+    for name in frames_n:
+        match = re.search(r"(\d+)", name)
+        if match:
+            indexed.append((int(match.group(1)), name))
+    indexed.sort(key=lambda item: item[0])
+    sorted_frames_n = [name for _, name in indexed[::down_sampling]]
+    if not sorted_frames_n:
+        raise ValueError(f"No usable frames found in {path}")
 
     img_s = []
 
     for f_n in sorted_frames_n:
         iii = io.imread(path / f_n)
+        if iii.ndim == 3 and iii.shape[-1] != 1:
+            iii = rgb2gray(iii)
+        elif iii.ndim == 2:
+            pass
+        else:
+            # fallback: squeeze any extra channels
+            iii = np.squeeze(iii)
+            if iii.ndim == 3:
+                iii = rgb2gray(iii)
+        if iii.shape != (img_x, img_y):
+            iii = resize(iii, (img_x, img_y), mode="reflect", anti_aliasing=True)
+        iii = iii.astype(np.float32)
         mean = np.mean(iii)
         std = np.std(iii)
         iii = (iii - mean) if std == 0 else (iii - mean) / std
-        img_s.append(iii[:, :, np.newaxis])
+        img_s.append(iii.reshape(img_x, img_y, 1))
 
     return np.array(img_s)
 
@@ -197,40 +217,41 @@ class light_generator:
 
         self.idx_s = np.arange(self.sample_size - self.seq_len)
         self.batch_size = batch_size
-        self.stp_per_epoch = max(1, int(self.sample_size / self.batch_size))
+        self.stp_per_epoch = max(
+            1, int(np.ceil(len(self.idx_s) / float(self.batch_size)))
+        )
 
     def generate(self):
         while True:
             for b in range(self.stp_per_epoch):
                 np.random.shuffle(self.idx_s)
                 rnd_idx = self.idx_s[: self.batch_size]
+                current_bs = len(rnd_idx)
 
-                xb = np.empty([self.batch_size, self.seq_len, self.h, self.w, self.c])
-                yb = np.empty([self.batch_size, 1])
+                xb = np.empty(
+                    [current_bs, self.seq_len, self.h, self.w, self.c],
+                    dtype=self.x.dtype,
+                )
+                yb = np.empty([current_bs, 1], dtype=self.y.dtype)
 
-                for i in range(len(rnd_idx)):
-                    ri = rnd_idx[i]
-                    xb[i, :, :, :, :] = self.x[ri : ri + self.seq_len, :, :, :]
+                for i, ri in enumerate(rnd_idx):
+                    xb[i, ...] = self.x[ri : ri + self.seq_len, :, :, :]
                     yb[i, :] = self.y[ri + self.seq_len, :]
 
                 yield xb, yb
 
 
 def create_img_dataset(
-    img_path, n, img_x, img_y, ch_n, str_n_s, sbj_n_s, down_sampling=5
+    img_path, img_x, img_y, ch_n, str_n_s, sbj_n_s, down_sampling=5
 ):
-    img_mat = np.zeros([n, img_x, img_y, ch_n], dtype=np.float32)
-    idx_srt = 0
-
+    img_slices = []
     for str_n in str_n_s:
         for sbj_n in sbj_n_s:
-            img_s = create_img_vec(img_path, sbj_n, str_n, down_sampling)
-            idx_end = idx_srt + img_s.shape[0]
+            img_vec = create_img_vec(img_path, sbj_n, str_n, down_sampling, img_x, img_y)
+            img_slices.append(img_vec)
+            print(f"loaded images for story {str_n}, subject {sbj_n}: {img_vec.shape}")
 
-            img_mat[idx_srt:idx_end, :, :, :] = img_s
+    if not img_slices:
+        raise ValueError("No images loaded; check image paths and templates.")
 
-            idx_srt = idx_end
-
-            print(str_n, sbj_n)
-
-    return img_mat
+    return np.concatenate(img_slices, axis=0)
