@@ -6,6 +6,7 @@
   "val_fullbody_dir": "full_body_extracted/validation",
   "train_labels_dir": "data/Training/Annotations",
   "val_labels_dir": "data/Validation/Annotations",
+  "device": "auto",
   "log_dir": "logs",
   "checkpoint_dir": "models/fullbody"
 }

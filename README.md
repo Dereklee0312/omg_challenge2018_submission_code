@@ -23,6 +23,10 @@ The overall diagram of the model is the following:
 <img src="model.png" width="860">
 </p>
 
+### Hardware Acceleration Notes (Fullbody)
+- Apple Silicon: install `tensorflow-macos` + `tensorflow-metal` to enable GPU via Metal, then set `"device": "auto"` or `"gpu"` in `fullbody/config.json`.
+- NVIDIA CUDA: install a CUDA-enabled TensorFlow build for your OS/driver (see TensorFlow GPU docs), then set `"device": "auto"` or `"gpu"` in `fullbody/config.json`.
+
 
 ### Overview of the Pipeline
 The pipeline you're working with is part of the OMG Challenge 2018 submission code for a transcript-based emotion recognition model using emotional lexicons. It processes spoken story transcripts (from SRT files) and ground-truth valence annotations (from CSV files) to extract features, align them to frame-level data, and train an LSTM model to predict valence (a measure of emotional positivity/negativity) per window of frames.

@@ -8,6 +8,7 @@ import numpy as np
 import keras.backend as K
 from keras import optimizers
 import keras.callbacks as cb
+import tensorflow as tf
 
 from model import create_reg_resnet18_3D
 from utils import ccc_error, create_img_dataset, light_generator, day_time
@@ -88,6 +89,24 @@ def _load_config(path: Path) -> dict:
         return json.load(handle)
 
 
+def _configure_devices(config: dict) -> None:
+    device_pref = config.get("device", "auto").lower()
+    gpus = tf.config.list_physical_devices("GPU")
+    if device_pref == "cpu":
+        tf.config.set_visible_devices([], "GPU")
+        print("device: cpu (GPU disabled)")
+        return
+    if device_pref == "gpu" and not gpus:
+        print("device: gpu requested but none available; using cpu")
+        return
+    if gpus:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        print(f"device: gpu ({len(gpus)} available)")
+    else:
+        print("device: cpu")
+
+
 def _resolve_img_template(
     config: dict, args: argparse.Namespace, split_key: str
 ) -> str:
@@ -125,6 +144,7 @@ def _resolve_label_template(
 def main() -> None:
     args = _parse_args()
     config = _load_config(args.config)
+    _configure_devices(config)
     output_dir = Path(config.get("checkpoint_dir", args.output_dir))
     log_dir_base = Path(config.get("log_dir", args.log_dir))
 
