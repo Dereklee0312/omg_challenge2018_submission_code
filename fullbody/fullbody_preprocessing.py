@@ -226,6 +226,7 @@ if __name__ == "__main__":
     for videos_dir, output_dir, split_name in splits:
         print(f"== {split_name} ==")
         if args.mode == "trial":
+            output_dir = output_dir / "_trial"
             TRIALextractFullBodyFromVideo(
                 videos_dir,
                 output_dir,
