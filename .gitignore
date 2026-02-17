@@ -45,3 +45,5 @@ landmarks/predictions_test_FINAL
 raw_face/model
 full_body_extracted
 */__pycache__
+predictions/speech
+speech/src/__pycache__
