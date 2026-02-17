@@ -3,7 +3,9 @@
 configuration file to be loaded for the whole project
 '''
 
-configuration_file = "../config/configOMG.ini"
+from pathlib import Path
+
+configuration_file = (Path(__file__).resolve().parent / "../config/configOMG.ini").resolve()
 
 def load(conf = configuration_file):
-    return conf
+    return str(conf)

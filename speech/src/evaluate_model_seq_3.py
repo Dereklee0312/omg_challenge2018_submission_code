@@ -11,22 +11,41 @@ import utilities_func as uf
 from calculateCCC import ccc2
 import feat_analysis2 as fa
 import tensorflow as tf
+from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from shared_utils.config_loader import load_defaults, resolve_manifest
+from shared_utils.split_validation import split_for_story
+from shared_utils.pred_schema import ensure_prediction_dir, write_prediction_csv
 
 # Load config file
 config = loadconfig.load()
 cfg = ConfigParser.ConfigParser()
 cfg.read(config)
+defaults = load_defaults()
+manifest = resolve_manifest(defaults)
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def _resolve_cfg_path(value: str) -> str:
+    p = Path(value)
+    if p.is_absolute():
+        return str(p)
+    return str((SCRIPT_DIR / p).resolve())
 
 # Get values from config file
-EVALUATION_PREDICTORS_LOAD = cfg.get('model', 'evaluation_predictors_load')
-REFERENCE_PREDICTORS_LOAD = cfg.get('model', 'reference_predictors_load')
-EVALUATION_TARGET_LOAD = cfg.get('model', 'evaluation_target_load')
-LLD_DIR = cfg.get('model', 'last_latent_dim_dir')
+EVALUATION_PREDICTORS_LOAD = _resolve_cfg_path(cfg.get('model', 'evaluation_predictors_load'))
+REFERENCE_PREDICTORS_LOAD = _resolve_cfg_path(cfg.get('model', 'reference_predictors_load'))
+EVALUATION_TARGET_LOAD = _resolve_cfg_path(cfg.get('model', 'evaluation_target_load'))
+LLD_DIR = _resolve_cfg_path(cfg.get('model', 'last_latent_dim_dir'))
 SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
-MODEL = cfg.get('model', 'load_model')
+MODEL = _resolve_cfg_path(cfg.get('model', 'load_model'))
 SR = cfg.getint('sampling', 'sr')
 HOP_SIZE = cfg.getint('stft', 'hop_size')
-MODEL_OUTPUT_FOLDER = cfg.get('model', 'modelOutputFolder')  # Read from config
+MODEL_OUTPUT_FOLDER = _resolve_cfg_path(cfg.get('model', 'modelOutputFolder'))  # Read from config
+os.makedirs(MODEL_OUTPUT_FOLDER, exist_ok=True)
+csv_out_dir = ensure_prediction_dir(defaults["predictions"]["base_dir"], "speech")
 
 fps = 25  # Annotations per second
 hop_annotation = SR / fps
@@ -117,7 +136,7 @@ def predict_datapoint(input_sound, input_annotation):
     final_pred = np.subtract(final_pred, 1.)
     
     # Apply f_trick
-    ann_folder = '../dataset/Training/Annotations'
+    ann_folder = defaults["paths"]["train_annotations"]
     target_mean, target_std = uf.find_mean_std(ann_folder)
     final_pred = uf.f_trick(final_pred, target_mean, target_std)
     
@@ -133,6 +152,17 @@ def predict_datapoint(input_sound, input_annotation):
     df = pandas.DataFrame({"valence": final_pred})
     df.to_csv(output_file, index=False)
     print(f"Saved prediction to {output_file}")
+    split = split_for_story(int(story), manifest["stories_train"], manifest["stories_val"])
+    write_prediction_csv(
+        csv_out_dir,
+        int(subject),
+        int(story),
+        frame_idx=list(range(len(final_pred))),
+        y_pred=final_pred.tolist(),
+        y_true=target.tolist(),
+        manifest_id=manifest["manifest_id"],
+        split=split,
+    )
     
     ccc = ccc2(final_pred, target)
     print("CCC = " + str(ccc))
@@ -183,6 +213,9 @@ def evaluate_all_data(sound_dir, annotation_dir):
     '''
     file_list = os.listdir(annotation_dir)
     file_list = file_list[:]  # Copy list
+    file_list = [
+        f for f in file_list if any(f"_Story_{s}.csv" in f for s in manifest["stories_val"])
+    ]
     ccc_values = []
     for datapoint in file_list:
         annotation_file = annotation_dir + '/' + datapoint
@@ -216,6 +249,6 @@ def extract_LLD_dataset(sound_dir, annotation_dir):
         np.save(output_filename, lld)
 
 if __name__ == "__main__":
-    sound_dir = "../dataset/Validation/audio" 
-    annotation_dir = "../dataset/Validation/Annotations" 
+    sound_dir = defaults["paths"]["val_audio"]
+    annotation_dir = defaults["paths"]["val_annotations"]
     evaluate_all_data(sound_dir, annotation_dir)

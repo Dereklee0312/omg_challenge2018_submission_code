@@ -12,19 +12,29 @@ import loadconfig
 import configparser
 import matplotlib.pyplot as plt
 import tensorflow as tf
+from pathlib import Path
 np.random.seed(1)
 
 # Load dataset...
 config = loadconfig.load()
 cfg = configparser.ConfigParser()
 cfg.read(config)
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def _resolve_cfg_path(value: str) -> str:
+    p = Path(value)
+    if p.is_absolute():
+        return str(p)
+    return str((SCRIPT_DIR / p).resolve())
 
 # Load parameters from config file
 NEW_CONV_MODEL = cfg.get('model', 'save_model')
-TRAINING_PREDICTORS = cfg.get('model', 'training_predictors_load')
-TRAINING_TARGET = cfg.get('model', 'training_target_load')
-VALIDATION_PREDICTORS = cfg.get('model', 'validation_predictors_load')
-VALIDATION_TARGET = cfg.get('model', 'validation_target_load')
+TRAINING_PREDICTORS = _resolve_cfg_path(cfg.get('model', 'training_predictors_load'))
+TRAINING_TARGET = _resolve_cfg_path(cfg.get('model', 'training_target_load'))
+VALIDATION_PREDICTORS = _resolve_cfg_path(cfg.get('model', 'validation_predictors_load'))
+VALIDATION_TARGET = _resolve_cfg_path(cfg.get('model', 'validation_target_load'))
+NEW_CONV_MODEL = _resolve_cfg_path(NEW_CONV_MODEL)
 SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
 print("Training predictors: " + TRAINING_PREDICTORS)
 print("Training target: " + TRAINING_TARGET)

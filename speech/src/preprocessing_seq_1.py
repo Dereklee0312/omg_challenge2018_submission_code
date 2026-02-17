@@ -5,24 +5,39 @@ import feat_analysis2 as fa
 import pandas
 import loadconfig
 import configparser
+from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from shared_utils.config_loader import load_defaults, resolve_manifest
 
 #load configuration file
 config = loadconfig.load()
 cfg = configparser.ConfigParser()
 cfg.read(config)
+defaults = load_defaults()
+manifest = resolve_manifest(defaults)
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def _resolve_cfg_path(value: str) -> str:
+    p = Path(value)
+    if p.is_absolute():
+        return str(p)
+    return str((SCRIPT_DIR / p).resolve())
 
 SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
 SEQ_OVERLAP = cfg.getfloat('preprocessing', 'sequence_overlap')
 
-SOUND_FOLDER_T = cfg.get('preprocessing', 'input_audio_folder_t')
-ANNOTATION_FOLDER_T = cfg.get('preprocessing', 'input_annotation_folder_t')
-OUTPUT_PREDICTORS_MATRIX_T = cfg.get('preprocessing', 'output_predictors_matrix_t')
-OUTPUT_TARGET_MATRIX_T = cfg.get('preprocessing', 'output_target_matrix_t')
+SOUND_FOLDER_T = _resolve_cfg_path(cfg.get('preprocessing', 'input_audio_folder_t'))
+ANNOTATION_FOLDER_T = _resolve_cfg_path(cfg.get('preprocessing', 'input_annotation_folder_t'))
+OUTPUT_PREDICTORS_MATRIX_T = _resolve_cfg_path(cfg.get('preprocessing', 'output_predictors_matrix_t'))
+OUTPUT_TARGET_MATRIX_T = _resolve_cfg_path(cfg.get('preprocessing', 'output_target_matrix_t'))
 
-SOUND_FOLDER_V = cfg.get('preprocessing', 'input_audio_folder_v')
-ANNOTATION_FOLDER_V = cfg.get('preprocessing', 'input_annotation_folder_v')
-OUTPUT_PREDICTORS_MATRIX_V = cfg.get('preprocessing', 'output_predictors_matrix_v')
-OUTPUT_TARGET_MATRIX_V = cfg.get('preprocessing', 'output_target_matrix_v')
+SOUND_FOLDER_V = _resolve_cfg_path(cfg.get('preprocessing', 'input_audio_folder_v'))
+ANNOTATION_FOLDER_V = _resolve_cfg_path(cfg.get('preprocessing', 'input_annotation_folder_v'))
+OUTPUT_PREDICTORS_MATRIX_V = _resolve_cfg_path(cfg.get('preprocessing', 'output_predictors_matrix_v'))
+OUTPUT_TARGET_MATRIX_V = _resolve_cfg_path(cfg.get('preprocessing', 'output_target_matrix_v'))
 
 TARGET_SUBJECT = cfg.get('preprocessing', 'target_subject')
 TARGET_STORY = cfg.get('preprocessing', 'target_story')
@@ -155,6 +170,21 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
     predictors = []
     target = []
     annotations = os.listdir(annotation_folder)
+    # Enforce canonical split stories by annotation folder.
+    ann_path = Path(annotation_folder).resolve()
+    train_ann = Path(defaults["paths"]["train_annotations"]).resolve()
+    val_ann = Path(defaults["paths"]["val_annotations"]).resolve()
+    if ann_path == train_ann:
+        allowed = set(manifest["stories_train"])
+    elif ann_path == val_ann:
+        allowed = set(manifest["stories_val"])
+    else:
+        allowed = set(manifest["stories_train"] + manifest["stories_val"])
+    annotations = [
+        f
+        for f in annotations
+        if any(f"_Story_{s}.csv" in f for s in allowed)
+    ]
     filtered_list = filter_items(annotations, target_subject, target_story)
     num_sounds = len(filtered_list)
     #process all files in folders
