@@ -15,12 +15,30 @@ from models.attlayer import AttentionWeightedAverage
 import tensorflow as tf
 import os
 import glob
+from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from shared_utils.config_loader import load_defaults, resolve_manifest
+from shared_utils.split_validation import ensure_disjoint, assert_annotation_files_exist
 
 # Parameters
+BASE_DIR = Path(__file__).resolve().parent
 subjects = [1,2,3,4,5,6,7,8,9,10]
 # Automatically determine stories from data directories
 training_annotations_path = "../data/Training/Annotations/"
 validation_annotations_path = "../data/Validation/Annotations/"
+defaults = load_defaults()
+manifest = resolve_manifest(defaults)
+ensure_disjoint(manifest["stories_train"], manifest["stories_val"])
+training_annotations_path = defaults["paths"]["train_annotations"]
+validation_annotations_path = defaults["paths"]["val_annotations"]
+assert_annotation_files_exist(
+    training_annotations_path, manifest["subjects_train"], manifest["stories_train"]
+)
+assert_annotation_files_exist(
+    validation_annotations_path, manifest["subjects_val"], manifest["stories_val"]
+)
 
 # Discover available stories from training and validation directories
 def discover_stories(annotations_dir):
@@ -40,8 +58,9 @@ def discover_stories(annotations_dir):
                 continue
     return sorted(list(story_nums))
 
-stories_train = discover_stories(training_annotations_path)
-stories_val = discover_stories(validation_annotations_path)
+stories_train = manifest["stories_train"]
+stories_val = manifest["stories_val"]
+subjects = manifest["subjects_train"]
 
 print(f"Discovered training stories: {stories_train}")
 print(f"Discovered validation stories: {stories_val}")
@@ -49,8 +68,8 @@ print(f"Discovered validation stories: {stories_val}")
 normalize_labels = True
 smooth = 0
 modalities = ["text"]
-base_path = "./data/"
-checkpoint_filename = "tmp_weights.h5"
+base_path = str(BASE_DIR / "data")
+checkpoint_filename = str(BASE_DIR / "tmp_weights.h5")
 batch_size = 500
 epochs = 1000
 patience = 20
@@ -81,7 +100,7 @@ tf.random.set_seed(5)
 # Data
 def get_X(story, subject, modality):
     file_name = "/Subject_" + str(subject) + "_Story_" + str(story) + "_aligned.npy"
-    base_path = "./vectors/val2/"
+    base_path = str(BASE_DIR / "vectors/val2") + "/"
     latent_vecs_path = base_path + "text_aligned" + file_name
     try:
         X = np.load(latent_vecs_path)
@@ -344,7 +363,7 @@ callbacks_list = [
     metrics,
     keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience),
     keras.callbacks.ModelCheckpoint(filepath=checkpoint_filename, monitor='val_loss', save_best_only=True),
-    keras.callbacks.TensorBoard(log_dir="../logs/lexicons_" + day_time)
+    keras.callbacks.TensorBoard(log_dir=str((BASE_DIR / f"../logs/lexicons_{day_time}").resolve()))
 ]
 
 history = model.fit([X_train_late_subject, X_train], Y_train,

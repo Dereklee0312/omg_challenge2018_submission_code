@@ -1,0 +1,7 @@
+{
+  "manifest_id": "current_repo_v1",
+  "subjects_train": [1,2,3,4,5,6,7,8,9,10],
+  "subjects_val": [1,2,3,4,5,6,7,8,9,10],
+  "stories_train": [2,4,5,8],
+  "stories_val": [1]
+}

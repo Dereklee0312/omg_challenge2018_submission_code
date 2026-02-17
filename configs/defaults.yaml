@@ -1,0 +1,19 @@
+{
+  "manifest_path": "configs/splits/current_repo.yaml",
+  "paths": {
+    "train_annotations": "data/Training/Annotations",
+    "val_annotations": "data/Validation/Annotations",
+    "train_videos": "data/Training/Videos",
+    "val_videos": "data/Validation/Videos",
+    "train_audio": "data/Training/audio",
+    "val_audio": "data/Validation/audio",
+    "landmarks_train": "landmarks/faces_extracted/training",
+    "landmarks_val": "landmarks/faces_extracted/validation",
+    "fullbody_train": "full_body_extracted/training",
+    "fullbody_val": "full_body_extracted/validation"
+  },
+  "predictions": {
+    "base_dir": "predictions",
+    "modalities": ["rawface", "landmarks", "fullbody", "speech", "transcript"]
+  }
+}

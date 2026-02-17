@@ -5,16 +5,24 @@ import os
 import re
 import urllib.request
 from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from shared_utils.config_loader import load_defaults, resolve_manifest
+
+BASE_DIR = Path(__file__).resolve().parent
 
 # Directories
-srt_dir = "data/srt"  # SRT files
-training_annotation_dir = "../data/Training/Annotations"  # Training Valence CSVs
-validation_annotation_dir = "../data/Validation/Annotations"  # Validation Valence CSVs
-lexicon_dir = "./lexicons/"  # Lexicon files
-tsv_dir = "data/text/word_valence"  # Intermediate TSVs
-csv_dir = "../data/text/lexicons_features"  # Intermediate CSVs
-npy_dir = "vectors/val2/text"  # Per-word NPYs
-aligned_npy_dir = "vectors/val2/text_aligned"  # Aligned frame-level NPYs
+srt_dir = str(BASE_DIR / "data/srt")  # SRT files
+defaults = load_defaults()
+manifest = resolve_manifest(defaults)
+training_annotation_dir = defaults["paths"]["train_annotations"]  # Training Valence CSVs
+validation_annotation_dir = defaults["paths"]["val_annotations"]  # Validation Valence CSVs
+lexicon_dir = str(BASE_DIR / "lexicons") + "/"  # Lexicon files
+tsv_dir = str(BASE_DIR / "data/text/word_valence")  # Intermediate TSVs
+csv_dir = str((BASE_DIR / "../data/text/lexicons_features").resolve())  # Intermediate CSVs
+npy_dir = str(BASE_DIR / "vectors/val2/text")  # Per-word NPYs
+aligned_npy_dir = str(BASE_DIR / "vectors/val2/text_aligned")  # Aligned frame-level NPYs
 for d in [tsv_dir, csv_dir, npy_dir, aligned_npy_dir, lexicon_dir]:
     os.makedirs(d, exist_ok=True)
 
@@ -234,16 +242,7 @@ def main():
 
     # Process training data
     print("Processing training data...")
-    training_stories = set()
-    for file in os.listdir(training_annotation_dir):
-        if file.endswith(".csv") and file.startswith("Subject_"):
-            parts = file.split("_")
-            if len(parts) >= 4:
-                try:
-                    story_num = int(parts[3].split(".")[0])
-                    training_stories.add(story_num)
-                except ValueError:
-                    continue
+    training_stories = set(manifest["stories_train"])
 
     for sub in subjects:
         for st in training_stories:
@@ -265,16 +264,7 @@ def main():
 
     # Process validation data
     print("Processing validation data...")
-    validation_stories = set()
-    for file in os.listdir(validation_annotation_dir):
-        if file.endswith(".csv") and file.startswith("Subject_"):
-            parts = file.split("_")
-            if len(parts) >= 4:
-                try:
-                    story_num = int(parts[3].split(".")[0])
-                    validation_stories.add(story_num)
-                except ValueError:
-                    continue
+    validation_stories = set(manifest["stories_val"])
 
     for sub in subjects:
         for st in validation_stories:
