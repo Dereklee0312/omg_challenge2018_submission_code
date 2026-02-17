@@ -1,5 +1,7 @@
 import numpy as np
 import os
+from pathlib import Path
+import sys
 from matplotlib import pyplot as plt
 from scipy.stats import pearsonr
 from scipy.signal import butter, lfilter
@@ -18,16 +20,45 @@ from scipy.signal import savgol_filter
 
 import re
 
-base_path_X_training = "./faces_extracted/training/"
-base_path_X_validation = "./faces_extracted/validation/"
-base_path_Y_training = "../data/Training/Annotations/"
-base_path_Y_validation = "../data/Validation/Annotations/"
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from shared_utils.config_loader import load_defaults, resolve_manifest
+from shared_utils.split_validation import ensure_disjoint, assert_annotation_files_exist, split_for_story
+from shared_utils.pred_schema import ensure_prediction_dir, write_prediction_csv
+defaults = load_defaults()
+manifest = resolve_manifest(defaults)
+ensure_disjoint(manifest["stories_train"], manifest["stories_val"])
+assert_annotation_files_exist(
+    defaults["paths"]["train_annotations"],
+    manifest["subjects_train"],
+    manifest["stories_train"],
+)
+assert_annotation_files_exist(
+    defaults["paths"]["val_annotations"],
+    manifest["subjects_val"],
+    manifest["stories_val"],
+)
 
-subjects_training = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-subjects_validation = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+REPO_ROOT = Path(__file__).resolve().parents[1]
+LANDMARKS_DIR = Path(__file__).resolve().parent
 
-stories_training = [2, 4, 5, 8]
-stories_validation = [1]
+
+def _resolve_repo_path(path_value: str) -> Path:
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    return (REPO_ROOT / path).resolve()
+
+
+base_path_X_training = str(_resolve_repo_path(defaults["paths"]["landmarks_train"])) + "/"
+base_path_X_validation = str(_resolve_repo_path(defaults["paths"]["landmarks_val"])) + "/"
+base_path_Y_training = str(_resolve_repo_path(defaults["paths"]["train_annotations"])) + "/"
+base_path_Y_validation = str(_resolve_repo_path(defaults["paths"]["val_annotations"])) + "/"
+
+subjects_training = manifest["subjects_train"]
+subjects_validation = manifest["subjects_val"]
+
+stories_training = manifest["stories_train"]
+stories_validation = manifest["stories_val"]
 
 subject_data = True
 actor_data = False
@@ -512,42 +543,42 @@ def apply_savgol_filter(x, window_length, polyorder):
 
 def save_predictions(model, Y_training):
     save_name = "FINAL"
+    predictions_base_dir = str(
+        _resolve_repo_path(defaults["predictions"]["base_dir"])
+    )
+    csv_out_dir = ensure_prediction_dir(predictions_base_dir, "landmarks")
     if save_latent_training or save_predictions_training:
-        base_path_X= "./faces_extracted/training/"
+        base_path_X = base_path_X_training
         subjects_predictions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         stories_predictions = [2, 4, 5, 8]
         predictions_n = len(subjects_predictions) * len(stories_predictions)
 
         if save_latent_training:
-            saving_dir_path = "latent_training_" + save_name + "/"
-            if not os.path.exists(saving_dir_path):
-                os.makedirs(saving_dir_path)
+            saving_dir_path = LANDMARKS_DIR / f"latent_training_{save_name}"
+            saving_dir_path.mkdir(parents=True, exist_ok=True)
             model_lat = Model(
                 inputs=model.input, outputs=model.get_layer("last_dense").output
             )
         elif save_predictions_training:
-            saving_dir_path = "predictions_training_" + save_name + "/"
-            if not os.path.exists(saving_dir_path):
-                os.makedirs(saving_dir_path)
+            saving_dir_path = LANDMARKS_DIR / f"predictions_training_{save_name}"
+            saving_dir_path.mkdir(parents=True, exist_ok=True)
             model_lat = model
 
     elif save_latent_test or save_predictions_test:
-        base_path_X= "./faces_extracted/validation/"
+        base_path_X = base_path_X_validation
         subjects_predictions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         stories_predictions = [1]
         predictions_n = len(subjects_predictions) * len(stories_predictions)
 
         if save_latent_test:
-            saving_dir_path = "latent_test_" + save_name + "/"
-            if not os.path.exists(saving_dir_path):
-                os.makedirs(saving_dir_path)
+            saving_dir_path = LANDMARKS_DIR / f"latent_test_{save_name}"
+            saving_dir_path.mkdir(parents=True, exist_ok=True)
             model_lat = Model(
                 inputs=model.input, outputs=model.get_layer("last_dense").output
             )
         elif save_predictions_test:
-            saving_dir_path = "predictions_test_" + save_name + "/"
-            if not os.path.exists(saving_dir_path):
-                os.makedirs(saving_dir_path)
+            saving_dir_path = LANDMARKS_DIR / f"predictions_test_{save_name}"
+            saving_dir_path.mkdir(parents=True, exist_ok=True)
             model_lat = model
 
     print(model_lat.summary())
@@ -591,7 +622,17 @@ def save_predictions(model, Y_training):
             if save_predictions_training or save_predictions_test:
                 predictions_lat = f_trick(Y_training, predictions_lat)[:, np.newaxis]
 
-                np.save(saving_dir_path + video_name + ".npy", predictions_lat)
+                np.save(saving_dir_path / f"{video_name}.npy", predictions_lat)
+                split = split_for_story(story, stories_training, stories_validation)
+                write_prediction_csv(
+                    csv_out_dir,
+                    subject,
+                    story,
+                    frame_idx=list(range(len(predictions_lat))),
+                    y_pred=predictions_lat.flatten().tolist(),
+                    manifest_id=manifest["manifest_id"],
+                    split=split,
+                )
 
             print(predictions_lat.shape)
             del X_video

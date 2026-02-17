@@ -1,7 +1,7 @@
 from model import *
 from utils import *
 
-import os
+from pathlib import Path
 
 
 import keras
@@ -12,15 +12,6 @@ from contextlib import redirect_stdout
 
 import time
 # from time import time
-
-base_path_X = "../omg_data/faces_extracted_without_pics/"
-base_path_Y = "../omg_data/Annotations/"
-
-subjects_training = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-subjects_validation = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-stories_training = [1, 4, 5, 8]
-stories_validation = [2]
 
 subject_data = True
 actor_data = False
@@ -41,9 +32,13 @@ window_size = 5
 
 day_time = time.strftime("%Y-%m-%d_%H_%M_%S")
 experiment_name = "experiment_" + day_time
-os.mkdir(experiment_name)
+BASE_DIR = Path(__file__).resolve().parent
+experiments_dir = BASE_DIR / "experiments"
+experiments_dir.mkdir(parents=True, exist_ok=True)
+experiment_dir = experiments_dir / experiment_name
+experiment_dir.mkdir(parents=True, exist_ok=False)
 
-filepath = experiment_name + "/"
+filepath = str(experiment_dir) + "/"
 
 
 batch_size = 512
@@ -73,11 +68,11 @@ csv_logger = CSVLogger("training.log")
 callbacks_list = [  # csv_logger,
     metrics_callback,
     keras.callbacks.EarlyStopping(monitor="val_loss", patience=patience),
-    keras.callbacks.TensorBoard(log_dir="logs/" + experiment_name),
+    keras.callbacks.TensorBoard(log_dir=str(BASE_DIR / "logs" / experiment_name)),
     # keras.callbacks.ModelCheckpoint(filepath=experiment_name+'/weights_epoch_{epoch:02d}.h5', monitor='val_loss', save_best_only=False)
 ]
 
-with open(experiment_name + "/modelsummary.txt", "w") as f:
+with open(experiment_dir / "modelsummary.txt", "w") as f:
     with redirect_stdout(f):
         model.summary()
 
@@ -100,5 +95,5 @@ save_predictions_training = False
 save_latent_test = False
 save_predictions_test = True
 
-model.load_weights(f"./{experiment_name}/best_model.h5")
+model.load_weights(str(experiment_dir / "best_model.h5"))
 save_predictions(model, Y_training)

@@ -4,12 +4,16 @@ import dlib
 
 from shutil import copyfile
 import sys
+from pathlib import Path
 
 import numpy as np
 import time
 
 from matplotlib import pyplot as plt
 import re
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from shared_utils.config_loader import load_defaults
 
 
 def sorted_nicely(l):
@@ -306,13 +310,14 @@ def rects_to_np(rect):
 
 
 if __name__ == "__main__":
+    defaults = load_defaults()
     # Path where the videos are
-    trainingVideosPath = "../data/Training/Videos"
-    validationVideosPath = "../data/Validation/Videos"
+    trainingVideosPath = defaults["paths"]["train_videos"]
+    validationVideosPath = defaults["paths"]["val_videos"]
 
     # Path where the faces will be saved
-    savePathTraining = "faces_extracted/training/"
-    savePathValidation = "faces_extracted/validation/"
+    savePathTraining = defaults["paths"]["landmarks_train"] + "/"
+    savePathValidation = defaults["paths"]["landmarks_val"] + "/"
 
     # If 1, the face detector will act upon each of the frames. If 1000, the face detector update its position every 1000 frames.
     # Actually: if 9, the face detector update its position every 10 frames.

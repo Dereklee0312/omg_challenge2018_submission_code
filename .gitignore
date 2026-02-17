@@ -47,3 +47,5 @@ full_body_extracted
 */__pycache__
 predictions/speech
 speech/src/__pycache__
+landmarks/experiments/experiment_2026-02-17_22_18_26
+landmarks/experiments
