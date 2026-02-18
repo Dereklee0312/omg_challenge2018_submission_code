@@ -36,6 +36,7 @@ SR = int(sampling_cfg["sr"])
 HOP_SIZE = int(stft_cfg["hop_size"])
 MODEL_OUTPUT_FOLDER = paths_cfg["model_output_folder"]
 os.makedirs(MODEL_OUTPUT_FOLDER, exist_ok=True)
+os.makedirs(LLD_DIR, exist_ok=True)
 csv_out_dir = ensure_prediction_dir(defaults["predictions"]["base_dir"], "speech")
 
 fps = 25  # Annotations per second

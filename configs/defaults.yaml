@@ -14,6 +14,7 @@
     "rawface_model": "raw_face/model/conv_3D_raw_face.13-0.06.keras",
     "rawface_faces_root": "data/extracted_faces",
     "rawface_legacy_predictions": "predictions/rawface_legacy_npy",
+    "transcript_legacy_predictions": "predictions/transcript_legacy_npy",
     "landmarks_tmp_dir": "landmarks/tmp"
   },
   "speech": {

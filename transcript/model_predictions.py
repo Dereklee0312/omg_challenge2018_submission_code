@@ -10,7 +10,7 @@ from pathlib import Path
 import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from shared_utils.config_loader import load_defaults, resolve_manifest
+from shared_utils.config_loader import load_defaults, resolve_manifest, resolve_repo_path
 from shared_utils.split_validation import split_for_story
 from shared_utils.pred_schema import ensure_prediction_dir, write_prediction_csv
 
@@ -43,7 +43,14 @@ stories_new = [s for s in stories_new if s in manifest["stories_val"]]
 
 base_path = str(BASE_DIR / "data")
 pred_base_dir = defaults["predictions"]["base_dir"]
-output_path = str(BASE_DIR / "predictions")  # legacy npy output
+output_path = str(
+    resolve_repo_path(
+        defaults["paths"].get(
+            "transcript_legacy_predictions",
+            "predictions/transcript_legacy_npy",
+        )
+    )
+)  # legacy npy output
 window_size = 100
 stride = 50
 embedding_size = 11
