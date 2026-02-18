@@ -1,49 +1,42 @@
+"""Build speech train/validation matrices with split-aware annotation filtering."""
+
 import numpy as np
 import os
 import utilities_func as uf
 import feat_analysis2 as fa
 import pandas
-import loadconfig
-import configparser
 from pathlib import Path
 import sys
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 from shared_utils.config_loader import load_defaults, resolve_manifest
+from speech_config import speech_paths, speech_preprocessing, speech_sampling, speech_stft
 
-#load configuration file
-config = loadconfig.load()
-cfg = configparser.ConfigParser()
-cfg.read(config)
 defaults = load_defaults()
 manifest = resolve_manifest(defaults)
-SCRIPT_DIR = Path(__file__).resolve().parent
+paths_cfg = speech_paths()
+pre_cfg = speech_preprocessing()
+sampling_cfg = speech_sampling()
+stft_cfg = speech_stft()
 
+SEQ_LENGTH = int(pre_cfg["sequence_length"])
+SEQ_OVERLAP = float(pre_cfg["sequence_overlap"])
 
-def _resolve_cfg_path(value: str) -> str:
-    p = Path(value)
-    if p.is_absolute():
-        return str(p)
-    return str((SCRIPT_DIR / p).resolve())
+SOUND_FOLDER_T = paths_cfg["input_audio_folder_t"]
+ANNOTATION_FOLDER_T = paths_cfg["input_annotation_folder_t"]
+OUTPUT_PREDICTORS_MATRIX_T = paths_cfg["output_predictors_matrix_t"]
+OUTPUT_TARGET_MATRIX_T = paths_cfg["output_target_matrix_t"]
 
-SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
-SEQ_OVERLAP = cfg.getfloat('preprocessing', 'sequence_overlap')
+SOUND_FOLDER_V = paths_cfg["input_audio_folder_v"]
+ANNOTATION_FOLDER_V = paths_cfg["input_annotation_folder_v"]
+OUTPUT_PREDICTORS_MATRIX_V = paths_cfg["output_predictors_matrix_v"]
+OUTPUT_TARGET_MATRIX_V = paths_cfg["output_target_matrix_v"]
 
-SOUND_FOLDER_T = _resolve_cfg_path(cfg.get('preprocessing', 'input_audio_folder_t'))
-ANNOTATION_FOLDER_T = _resolve_cfg_path(cfg.get('preprocessing', 'input_annotation_folder_t'))
-OUTPUT_PREDICTORS_MATRIX_T = _resolve_cfg_path(cfg.get('preprocessing', 'output_predictors_matrix_t'))
-OUTPUT_TARGET_MATRIX_T = _resolve_cfg_path(cfg.get('preprocessing', 'output_target_matrix_t'))
-
-SOUND_FOLDER_V = _resolve_cfg_path(cfg.get('preprocessing', 'input_audio_folder_v'))
-ANNOTATION_FOLDER_V = _resolve_cfg_path(cfg.get('preprocessing', 'input_annotation_folder_v'))
-OUTPUT_PREDICTORS_MATRIX_V = _resolve_cfg_path(cfg.get('preprocessing', 'output_predictors_matrix_v'))
-OUTPUT_TARGET_MATRIX_V = _resolve_cfg_path(cfg.get('preprocessing', 'output_target_matrix_v'))
-
-TARGET_SUBJECT = cfg.get('preprocessing', 'target_subject')
-TARGET_STORY = cfg.get('preprocessing', 'target_story')
-TARGET_DELAY = cfg.getint('preprocessing', 'target_delay')
-SR = cfg.getint('sampling', 'sr')
-HOP_SIZE = cfg.getint('stft', 'hop_size')
+TARGET_SUBJECT = str(pre_cfg["target_subject"])
+TARGET_STORY = str(pre_cfg["target_story"])
+TARGET_DELAY = int(pre_cfg["target_delay"])
+SR = int(sampling_cfg["sr"])
+HOP_SIZE = int(stft_cfg["hop_size"])
 
 fps = 25  #annotations per second
 hop_annotation = SR /fps
@@ -61,10 +54,7 @@ frames_delay = int(TARGET_DELAY * frames_per_annotation)
 
 
 def filter_items(contents_list, target_subj='all', target_story='all'):
-    '''
-    return a list with filenames containing only a desired subject or story
-
-    '''
+    """Filter annotation filenames by optional subject/story constraints."""
     target_subj = str(target_subj)
     target_story = str(target_story)
     final_list = []
@@ -94,10 +84,7 @@ def filter_items(contents_list, target_subj='all', target_story='all'):
     return final_list
 
 def preprocess_datapoint(input_sound, input_annotation):
-    '''
-    generate predictors (stft) and target (valence sequence)
-    of one sound file from the OMG dataset
-    '''
+    """Extract STFT features and aligned valence targets for one sample."""
     # Convert samples to floats
     sr, samples = uf.wavread(input_sound)
 
@@ -124,11 +111,7 @@ def preprocess_datapoint(input_sound, input_annotation):
     return feats, annotation
 
 def segment_datapoint(features, annotation, sequence_length, sequence_overlap):
-    '''
-    segment features and annotations of one long audio file
-    into smaller matrices of length "sequence_length"
-    and overlapped by "sequence_overlap"
-    '''
+    """Segment long feature/annotation sequences into fixed-length windows."""
     step = sequence_length*sequence_overlap  #segmentation overlap step
     num_datapoints = int(len(annotation) / step)
     pointer = np.arange(0,len(annotation), step, dtype='int')  #initail positions of segments
@@ -160,17 +143,11 @@ def segment_datapoint(features, annotation, sequence_length, sequence_overlap):
 
 
 def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', target_story='all'):
-    '''
-    build dataset numpy matrices:
-    -predictors: contatining audio features
-    -target: contatining correspective valence annotations
-    both are NOT normalized
-    datapoints order is randomly scrambled
-    '''
+    """Build and shuffle dataset matrices for one annotation/audio folder pair."""
     predictors = []
     target = []
     annotations = os.listdir(annotation_folder)
-    # Enforce canonical split stories by annotation folder.
+    # Enforce canonical split stories by annotation folder location.
     ann_path = Path(annotation_folder).resolve()
     train_ann = Path(defaults["paths"]["train_annotations"]).resolve()
     val_ann = Path(defaults["paths"]["val_annotations"]).resolve()
@@ -221,9 +198,7 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
     return shuffled_predictors, shuffled_target
 
 def build_matrices(output_predictors_matrix, output_target_matrix, sound_folder, annotation_folder):
-    '''
-    build matrices and save numpy files
-    '''
+    """Create and save predictors/target matrices to `.npy` files."""
     predictors, target = preprocess_dataset(sound_folder, annotation_folder, TARGET_SUBJECT, TARGET_STORY)
     np.save(output_predictors_matrix, predictors)
     np.save(output_target_matrix, target)
@@ -233,8 +208,6 @@ def build_matrices(output_predictors_matrix, output_target_matrix, sound_folder,
 
 
 if __name__ == '__main__':
-    '''
-    build training and validation matrices
-    '''
+    """Build both training and validation matrices using shared defaults."""
     build_matrices(OUTPUT_PREDICTORS_MATRIX_T, OUTPUT_TARGET_MATRIX_T, SOUND_FOLDER_T, ANNOTATION_FOLDER_T)
     build_matrices(OUTPUT_PREDICTORS_MATRIX_V, OUTPUT_TARGET_MATRIX_V, SOUND_FOLDER_V, ANNOTATION_FOLDER_V)

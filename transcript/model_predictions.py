@@ -1,3 +1,5 @@
+"""Run transcript model inference and export legacy + canonical predictions."""
+
 import numpy as np
 from keras.models import Model
 from keras.layers import Input, Dense, Dropout, Embedding, LSTM, concatenate, Flatten
@@ -22,7 +24,7 @@ validation_annotations_path = defaults["paths"]["val_annotations"]
 
 # Discover validation stories from directory
 def discover_stories(annotations_dir):
-    """Discover which stories are available in a given annotations directory."""
+    """Discover story IDs present in an annotations directory."""
     story_nums = set()
     for file in os.listdir(annotations_dir):
         if file.endswith(".csv") and file.startswith("Subject_"):
@@ -62,6 +64,7 @@ train_max_y = 1.0  # Replace with actual max_y from training
 
 # Data loading function from original script
 def get_X(story, subject, modality):
+    """Load aligned transcript embeddings for one subject/story pair."""
     file_name = "/Subject_" + str(subject) + "_Story_" + str(story) + "_aligned.npy"
     base_path = str(BASE_DIR / "vectors/val2") + "/"
     latent_vecs_path = base_path + "text_aligned" + file_name
@@ -91,6 +94,7 @@ def butter_lowpass_filter_bidirectional(data, cutoff=0.1, fs=25, order=1):
 
 # Model architecture
 def build_model():
+    """Build the transcript LSTM model architecture used for inference."""
     input_late_subject = Input(shape=(1,), dtype='int32')
     input_lstm = Input(shape=(window_size, embedding_size))
     seq_input_drop = Dropout(initial_dropout)(input_lstm)
@@ -111,6 +115,7 @@ def build_model():
 
 # Post-processing (if used during training)
 def f_trick(Y_train, preds):
+    """Rescale predictions to match target distribution moments."""
     Y_train_flat = Y_train.flatten()
     preds_flat = preds.flatten()
     s0 = np.std(Y_train_flat)
@@ -120,7 +125,7 @@ def f_trick(Y_train, preds):
     norm_preds = s0 * (preds_flat - m1) / (s1 + 1e-10) + m0
     return norm_preds
 
-# Create output directory if it doesn't exist
+# Create legacy `.npy` output dir and canonical CSV output dir.
 os.makedirs(output_path, exist_ok=True)
 csv_out_dir = ensure_prediction_dir(pred_base_dir, "transcript")
 

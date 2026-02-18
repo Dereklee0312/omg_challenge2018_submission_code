@@ -1,7 +1,10 @@
+"""Helpers for canonical prediction CSV outputs and schema validation."""
+
 from __future__ import annotations
 
 from pathlib import Path
 import pandas as pd
+from shared_utils.config_loader import resolve_repo_path
 
 
 REQUIRED_COLUMNS = [
@@ -17,7 +20,9 @@ REQUIRED_COLUMNS = [
 
 
 def ensure_prediction_dir(base_dir: str | Path, modality: str) -> Path:
-    out_dir = Path(base_dir) / modality
+    """Create and return modality-specific prediction directory under base path."""
+    # Always anchor relative base dirs to repo root for CWD-invariant outputs.
+    out_dir = resolve_repo_path(base_dir) / modality
     out_dir.mkdir(parents=True, exist_ok=True)
     return out_dir
 
@@ -33,7 +38,11 @@ def write_prediction_csv(
     y_true=None,
     fps: float = 25.0,
 ) -> Path:
-    out_path = Path(out_dir) / f"Subject_{subject}_Story_{story}.csv"
+    """Write per-subject/story predictions to canonical CSV format."""
+    out_path = Path(out_dir)
+    if not out_path.is_absolute():
+        out_path = resolve_repo_path(out_path)
+    out_path = out_path / f"Subject_{subject}_Story_{story}.csv"
     n = len(y_pred)
     if y_true is None:
         y_true = [None] * n
@@ -54,6 +63,7 @@ def write_prediction_csv(
 
 
 def validate_prediction_csv(path: str | Path) -> None:
+    """Validate required columns for a generated prediction CSV file."""
     df = pd.read_csv(path)
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing:

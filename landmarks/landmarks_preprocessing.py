@@ -1,3 +1,5 @@
+"""Extract face crops, coordinates, and landmarks for train/validation splits."""
+
 import cv2
 import os
 import dlib
@@ -13,7 +15,10 @@ from matplotlib import pyplot as plt
 import re
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from shared_utils.config_loader import load_defaults
+from shared_utils.config_loader import load_defaults, resolve_repo_path
+
+BASE_DIR = Path(__file__).resolve().parent
+TMP_DIR = BASE_DIR / "tmp"
 
 
 def sorted_nicely(l):
@@ -24,6 +29,7 @@ def sorted_nicely(l):
 
 
 def progressBar(value, endvalue, bar_length=20):
+    """Render simple in-place progress bar for long video processing."""
     percent = float(value) / endvalue
     arrow = "-" * int(round(percent * bar_length) - 1) + ">"
     spaces = " " * (bar_length - len(arrow))
@@ -35,6 +41,7 @@ def progressBar(value, endvalue, bar_length=20):
 
 
 def extractFramesFromVideo(path, savePath, faceDetectorPrecision):
+    """Run face detection/tracking per frame and persist crops + landmarks."""
     videos = sorted_nicely(os.listdir(path + "/"))
     if ".DS_Store" in videos:
         videos.remove(".DS_Store")
@@ -47,13 +54,12 @@ def extractFramesFromVideo(path, savePath, faceDetectorPrecision):
         print("- Processing Video:", videoPath + " ...")
         dataX = []
 
-        copyTarget = "tmp/current_video.mp4"
-        if not os.path.exists("tmp/"):
-            os.makedirs("tmp/")
+        copyTarget = TMP_DIR / "current_video.mp4"
+        TMP_DIR.mkdir(parents=True, exist_ok=True)
 
         print("--- Copying file:", videoPath + " ...")
-        copyfile(videoPath, copyTarget)
-        cap = cv2.VideoCapture(copyTarget)
+        copyfile(videoPath, str(copyTarget))
+        cap = cv2.VideoCapture(str(copyTarget))
 
         totalFrames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         numberOfImages = 0
@@ -249,6 +255,7 @@ def extractFramesFromVideo(path, savePath, faceDetectorPrecision):
 
 
 def dlib_determine_landmarks(rect, img):
+    """Return 68-point landmarks for a detected face rectangle."""
     # returns the landmarks of each face
     # landmarks has shape [#landmarks=68, #coordinates=2]
 
@@ -281,6 +288,7 @@ def dlib_determine_landmarks(rect, img):
 
 
 def shape_to_np(shape, dtype="int"):
+    """Convert dlib shape object into `(68, 2)` NumPy array."""
     # initialize the list of (x, y)-coordinates
     coords = np.zeros((68, 2), dtype=dtype)
 
@@ -294,6 +302,7 @@ def shape_to_np(shape, dtype="int"):
 
 
 def rects_to_np(rect):
+    """Convert dlib rectangle to `[x1, y1, x2, y2]` array."""
     # take a bounding predicted by dlib and convert it
     # to the format (x1, y1, x2, y2), where (x1,y1) is a vertex of the
     # rectangle and (x2,y2) is the vertex opposite to (x1,y1))
@@ -318,13 +327,16 @@ if __name__ == "__main__":
     # Path where the faces will be saved
     savePathTraining = defaults["paths"]["landmarks_train"] + "/"
     savePathValidation = defaults["paths"]["landmarks_val"] + "/"
+    # Keep temporary work directory stable regardless of invocation directory.
+    TMP_DIR = resolve_repo_path(defaults["paths"].get("landmarks_tmp_dir", "landmarks/tmp"))
 
     # If 1, the face detector will act upon each of the frames. If 1000, the face detector update its position every 1000 frames.
     # Actually: if 9, the face detector update its position every 10 frames.
     faceDetectorPrecision = 9
 
     detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+    predictor_path = BASE_DIR / "shape_predictor_68_face_landmarks.dat"
+    predictor = dlib.shape_predictor(str(predictor_path))
 
     extractFramesFromVideo(trainingVideosPath, savePathTraining, faceDetectorPrecision)
     extractFramesFromVideo(

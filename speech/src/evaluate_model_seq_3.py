@@ -1,9 +1,7 @@
-# ALSO GENERATES PREDICTIONS FILE
+"""Evaluate speech model and export predictions in legacy and canonical formats."""
 import numpy as np
-import loadconfig
 import os
 import pandas
-import configparser as ConfigParser
 import essentia.standard as ess
 from tensorflow.keras.models import load_model, Model
 from scipy.signal import filtfilt, butter
@@ -18,32 +16,25 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from shared_utils.config_loader import load_defaults, resolve_manifest
 from shared_utils.split_validation import split_for_story
 from shared_utils.pred_schema import ensure_prediction_dir, write_prediction_csv
+from speech_config import speech_paths, speech_preprocessing, speech_sampling, speech_stft
 
-# Load config file
-config = loadconfig.load()
-cfg = ConfigParser.ConfigParser()
-cfg.read(config)
 defaults = load_defaults()
 manifest = resolve_manifest(defaults)
-SCRIPT_DIR = Path(__file__).resolve().parent
+paths_cfg = speech_paths()
+pre_cfg = speech_preprocessing()
+sampling_cfg = speech_sampling()
+stft_cfg = speech_stft()
 
-
-def _resolve_cfg_path(value: str) -> str:
-    p = Path(value)
-    if p.is_absolute():
-        return str(p)
-    return str((SCRIPT_DIR / p).resolve())
-
-# Get values from config file
-EVALUATION_PREDICTORS_LOAD = _resolve_cfg_path(cfg.get('model', 'evaluation_predictors_load'))
-REFERENCE_PREDICTORS_LOAD = _resolve_cfg_path(cfg.get('model', 'reference_predictors_load'))
-EVALUATION_TARGET_LOAD = _resolve_cfg_path(cfg.get('model', 'evaluation_target_load'))
-LLD_DIR = _resolve_cfg_path(cfg.get('model', 'last_latent_dim_dir'))
-SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
-MODEL = _resolve_cfg_path(cfg.get('model', 'load_model'))
-SR = cfg.getint('sampling', 'sr')
-HOP_SIZE = cfg.getint('stft', 'hop_size')
-MODEL_OUTPUT_FOLDER = _resolve_cfg_path(cfg.get('model', 'modelOutputFolder'))  # Read from config
+# Get values from shared defaults-backed speech config.
+EVALUATION_PREDICTORS_LOAD = paths_cfg["evaluation_predictors_load"]
+REFERENCE_PREDICTORS_LOAD = paths_cfg["reference_predictors_load"]
+EVALUATION_TARGET_LOAD = paths_cfg["evaluation_target_load"]
+LLD_DIR = paths_cfg["last_latent_dim_dir"]
+SEQ_LENGTH = int(pre_cfg["sequence_length"])
+MODEL = paths_cfg["load_model"]
+SR = int(sampling_cfg["sr"])
+HOP_SIZE = int(stft_cfg["hop_size"])
+MODEL_OUTPUT_FOLDER = paths_cfg["model_output_folder"]
 os.makedirs(MODEL_OUTPUT_FOLDER, exist_ok=True)
 csv_out_dir = ensure_prediction_dir(defaults["predictions"]["base_dir"], "speech")
 
@@ -55,6 +46,7 @@ feats_per_valence = int(frames_per_annotation * feats_per_frame)
 
 # Custom loss function (vectorized for TF 2.x compatibility; batch_size not used directly)
 def batch_CCC(y_true, y_pred):
+    """Compute batch CCC loss used when loading the trained model."""
     y_true = tf.cast(y_true, tf.float32)
     y_pred = tf.cast(y_pred, tf.float32)
     
@@ -98,10 +90,7 @@ print("")
 print("using model: " + MODEL)
 
 def predict_datapoint(input_sound, input_annotation):
-    '''
-    loads one audio file and predicts its continuous valence
-    Saves the prediction to a CSV file in model_output_folder
-    '''
+    """Predict valence sequence for one sample and persist outputs."""
     sr, samples = uf.wavread(input_sound)  # load
     e_samples = uf.preemphasis(samples, sr)  # pre-emphasis with sr
     predictors = fa.extract_features(e_samples)  # extract features
@@ -144,7 +133,7 @@ def predict_datapoint(input_sound, input_annotation):
     b, a = butter(3, 0.01, 'low')
     final_pred = filtfilt(b, a, final_pred)
     
-    # Save prediction to CSV
+    # Save legacy CSV output and canonical split-tagged CSV output.
     name = os.path.basename(input_sound).replace(".mp4.wav", "")
     subject = name.split("_")[1]  # Extract subject number
     story = name.split("_")[3]    # Extract story number
@@ -169,9 +158,7 @@ def predict_datapoint(input_sound, input_annotation):
     return ccc
 
 def extract_LLD_datapoint(input_sound, input_annotation):
-    '''
-    Extract last latent dimension for one datapoint
-    '''
+    """Extract latent representation sequence for one audio/annotation pair."""
     sr, samples = uf.wavread(input_sound)  # load
     e_samples = uf.preemphasis(samples, sr)  # pre-emphasis with sr
     predictors = fa.extract_features(e_samples)  # extract features
@@ -207,10 +194,7 @@ def extract_LLD_datapoint(input_sound, input_annotation):
     return final_vec
 
 def evaluate_all_data(sound_dir, annotation_dir):
-    '''
-    compute prediction and ccc for all validation set
-    Saves predictions to modelOutputFolder
-    '''
+    """Run prediction+CCC evaluation across manifest validation stories."""
     file_list = os.listdir(annotation_dir)
     file_list = file_list[:]  # Copy list
     file_list = [
@@ -234,9 +218,7 @@ def evaluate_all_data(sound_dir, annotation_dir):
     print("Max CCC = " + str(max_ccc))
 
 def extract_LLD_dataset(sound_dir, annotation_dir):
-    '''
-    compute last latent dimension for all dataset
-    '''
+    """Extract and save latent representations for all annotation files."""
     file_list = os.listdir(annotation_dir)
     file_list = file_list[:]  # Copy list
     for datapoint in file_list:

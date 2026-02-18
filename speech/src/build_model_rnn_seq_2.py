@@ -1,5 +1,4 @@
-# CONVOLUTIONAL NEURAL NETWORK
-# tuned as in https://www.researchgate.net/publication/306187492_Deep_Convolutional_Neural_Networks_and_Data_Augmentation_for_Environmental_Sound_Classification
+"""Train the speech GRU model using datasets from shared defaults configuration."""
 
 import numpy as np
 from tensorflow.keras.models import Model
@@ -8,34 +7,21 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, History
 from tensorflow.keras import optimizers
 from tensorflow.keras import regularizers
 import utilities_func as uf
-import loadconfig
-import configparser
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from pathlib import Path
+from speech_config import speech_paths, speech_preprocessing
 np.random.seed(1)
 
-# Load dataset...
-config = loadconfig.load()
-cfg = configparser.ConfigParser()
-cfg.read(config)
-SCRIPT_DIR = Path(__file__).resolve().parent
+paths_cfg = speech_paths()
+pre_cfg = speech_preprocessing()
 
-
-def _resolve_cfg_path(value: str) -> str:
-    p = Path(value)
-    if p.is_absolute():
-        return str(p)
-    return str((SCRIPT_DIR / p).resolve())
-
-# Load parameters from config file
-NEW_CONV_MODEL = cfg.get('model', 'save_model')
-TRAINING_PREDICTORS = _resolve_cfg_path(cfg.get('model', 'training_predictors_load'))
-TRAINING_TARGET = _resolve_cfg_path(cfg.get('model', 'training_target_load'))
-VALIDATION_PREDICTORS = _resolve_cfg_path(cfg.get('model', 'validation_predictors_load'))
-VALIDATION_TARGET = _resolve_cfg_path(cfg.get('model', 'validation_target_load'))
-NEW_CONV_MODEL = _resolve_cfg_path(NEW_CONV_MODEL)
-SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
+# Load all I/O/model paths from the shared defaults speech section.
+NEW_CONV_MODEL = paths_cfg["save_model"]
+TRAINING_PREDICTORS = paths_cfg["training_predictors_load"]
+TRAINING_TARGET = paths_cfg["training_target_load"]
+VALIDATION_PREDICTORS = paths_cfg["validation_predictors_load"]
+VALIDATION_TARGET = paths_cfg["validation_target_load"]
+SEQ_LENGTH = int(pre_cfg["sequence_length"])
 print("Training predictors: " + TRAINING_PREDICTORS)
 print("Training target: " + TRAINING_TARGET)
 print("Validation predictors: " + VALIDATION_PREDICTORS)
@@ -78,6 +64,7 @@ opt = optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999, amsgrad=Fa
 
 # Custom loss (vectorized for TF 2.x compatibility)
 def batch_CCC(y_true, y_pred):
+    """Compute batch-wise CCC loss for sequence regression."""
     y_true = tf.cast(y_true, tf.float32)
     y_pred = tf.cast(y_pred, tf.float32)
     

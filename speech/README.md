@@ -1,11 +1,11 @@
 ## Speech Model
 
 This model is based on the audio information extracted from the video data. It has a sequence to sequence design based on a Recurrent Neural Network. The model's task is to predict time sequences of 200 valence samples for 8 seconds of input.
-The I/O folders and several pre-processing parameters are set in the config.ini file. Make sure to input the correct paths in this file before launching the sctripts.
+The I/O folders and preprocessing parameters are now sourced from `configs/defaults.yaml` under the `speech` section.
 
 ### dependencies
 
-numpy, essentia, scipy, configparser, keras, tensorflow, pandas
+numpy, essentia, scipy, keras, tensorflow, pandas
 
 ### preprocessing
 
