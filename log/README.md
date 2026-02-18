@@ -3,6 +3,7 @@
 This folder tracks implementation updates chronologically.
 
 ## Entries
+- [2026-02-18 — Run Artifact Validation Snapshot](README_2026-02-18_run_artifact_validation.md)
 - [2026-02-17 — Planning Docs Reconciliation](README_2026-02-17_planning_reconciliation.md)
 - [2026-02-17 — Split Consistency + Default-First Runtime](README_2026-02-17_split_consistency_default_first.md)
 
