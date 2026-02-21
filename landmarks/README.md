@@ -186,7 +186,7 @@ python landmarks_preprocessing.py
 Train the model using the main script:
 
 ```bash
-python landmarks_main.py
+uv run python landmarks/landmarks_main.py
 ```
 
 **Configuration**:
@@ -202,11 +202,18 @@ python landmarks_main.py
 
 ### 3. Making Predictions
 
-After training, predictions are automatically saved if `save_predictions_test = True`:
+Use the standalone prediction script to generate outputs from an existing trained model (without retraining):
 
-```python
-model.load_weights('best_model.h5')
-save_predictions()
+```bash
+uv run python landmarks/landmarks_generate_predictions.py --mode validation_predictions
+```
+
+Optional explicit model path:
+
+```bash
+uv run python landmarks/landmarks_generate_predictions.py \
+  --model landmarks/experiments/experiment_YYYY-MM-DD_HH_MM_SS/best_model.h5 \
+  --mode validation_predictions
 ```
 
 ## File Structure

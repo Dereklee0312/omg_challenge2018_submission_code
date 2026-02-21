@@ -2,18 +2,43 @@
 
 The raw face model predicts valence from sequences of subject face cropped frames using a 3d convolutional architecture. This model additionally takes into account the identity of the subject as an auxiliary input added after the convolutional layers.
 
-### dependencies
+### Dependencies
 
-numpy, keras, tensorflow, sci-kit image 
+1. numpy
+2. keras
+3. tensorflow
+4. scikit-image
  
 
-### preprocessing
+### Preprocessing
 
-The preprocessing of the videos is done using the script omg_challenge2018_submission_code/landmarks/landmarks_preprocessing.py.
-This operation crops the face of the subject at every frame and transforms it into an equalized 48x48 BW image.
+Face crops are produced by landmarks preprocessing and stored in configured landmarks output directories (see defaults path keys).
 
 
-### training
+### Training
 
-To load the dataset and train the model simply call raw_face_main.py (make sure you provide the correct path to load the images). This script will save in the target folder the best model given the validation performance.
+Run from repo root:
 
+```bash
+uv run python raw_face/raw_face_main.py
+```
+
+The training script resolves data and annotation paths from `configs/defaults.yaml`.
+
+### Prediction Generation
+
+Raw-face prediction export used by multimodal flow:
+1. `Multimodal - Transcript + Raw Face + Speech/rawface_model_predictions.py`
+
+Run from repo root:
+
+```bash
+uv run python "Multimodal - Transcript + Raw Face + Speech/rawface_model_predictions.py"
+```
+
+### Outputs
+1. Canonical CSV predictions: `predictions/rawface/`
+2. Legacy `.npy` predictions: `predictions/rawface_legacy_npy/`
+
+### Notes
+1. For cross-modality conventions and path/source-of-truth rules, see `docs/team_codebase_playbook.md`.

@@ -1,34 +1,40 @@
 ## Speech Model
 
-This model is based on the audio information extracted from the video data. It has a sequence to sequence design based on a Recurrent Neural Network. The model's task is to predict time sequences of 200 valence samples for 8 seconds of input.
-The I/O folders and preprocessing parameters are now sourced from `configs/defaults.yaml` under the `speech` section.
+This modality predicts valence sequences from audio features using a recurrent network pipeline.
 
-### dependencies
+## Source of Truth
+1. Speech configuration comes from `configs/defaults.yaml` under the `speech` section.
+2. Path resolution is handled by shared config loader utilities.
+3. Canonical prediction CSV outputs are written under `predictions/speech`.
 
-numpy, essentia, scipy, keras, tensorflow, pandas
+## Dependencies
+1. numpy
+2. essentia
+3. scipy
+4. keras
+5. tensorflow
+6. pandas
 
-### preprocessing
+## Active Scripts
+1. Preprocessing: `speech/src/preprocessing_seq_1.py`
+2. Training: `speech/src/build_model_rnn_seq_2.py`
+3. Evaluation + prediction export: `speech/src/evaluate_model_seq_3.py`
+4. Legacy conversion helper: `speech/src/convert_predictions2npy_4.py`
 
-The preprocessing.py script applies 4 concatenated transformations to the audio signals: pre-emphasis, segmentation, spectrum computation, power-law compression. This operation produces data-points shaped as (800, 129), where the first dimension is the time and the second is the frequency.
+## Typical Workflow
+From repo root:
 
-### training
-
-The script build_model_rnn_seq.py first normalizes the input data in order to obtain a dataset with mean equal to 0 and standard deviation equal to 1. Then, it trains the RNN-based model and saves the best one with respect to the lowest validation loss.
-
-
-# Note
-Requires installing ffmpeg for unix systems.
-
-copy the mp4_to_wav.sh script to the data/scripts folder and run it to generate the wav files
+```bash
+uv run python speech/src/preprocessing_seq_1.py
+uv run python speech/src/build_model_rnn_seq_2.py
+uv run python speech/src/evaluate_model_seq_3.py
 ```
-cp mp4_to_wav.sh data/scripts/
-cd data/scripts/
-./mp4_to_wav.sh
-```
 
-then run the preprocessing_seq.py script to generate the predictors and target matrices
-```
-python preprocessing_seq.py
-```
+## Output Locations
+1. Canonical CSV predictions: `predictions/speech/`
+2. Model output CSVs: `speech/model_output/`
+3. Latent feature outputs: `speech/last_latent_dim/`
 
-then run the build_model_rnn_seq.py script to build the model
+## Notes
+1. ffmpeg may be required to generate `.wav` files from `.mp4` depending on your data state.
+2. For team onboarding and cross-modality conventions, see `docs/team_codebase_playbook.md`.

@@ -1,3 +1,8 @@
+# Historical Note
+This file is archived and kept for project history.
+It may reference scripts, paths, or workflow assumptions that are no longer current.
+Use active docs in `docs/` and root/modality READMEs for current operational guidance.
+
 # 2026-02-18 — Run Artifact Validation Snapshot
 
 ## Purpose
