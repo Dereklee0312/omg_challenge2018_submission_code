@@ -1,10 +1,32 @@
-## Transcript Model (with Emotional Lexicons)
+## Transcript Model
 
-### dependencies
-numpy, keras, tensorflow, sci-kit image, pandas
+This modality generates valence predictions from transcript-derived features.
 
-### preprocessing
-The preprocessing.py script takes in input the json files generated with [Amazon Transcribe](https://aws.amazon.com/transcribe/), and generate the features for each word in the dialogs. The features are 11 in total, and are extracted from two emotional lexicons ([1](http://crr.ugent.be/archives/1003), [2](https://github.com/marcoguerini/DepecheMood/releases)). 
+## Source of Truth
+1. Global paths and split settings come from `configs/defaults.yaml` and `configs/splits/current_repo.yaml`.
+2. Canonical prediction CSV output is under `predictions/transcript`.
+3. Legacy transcript `.npy` output path is configured via `paths.transcript_legacy_predictions` in defaults.
 
-### training
-The 11 dimensions vectors are then computed as a sequence in the LSTM_lexicons.py script, that takes in input the files generated in the preprocessing phase, and trains an LSTM with an attention module in output. Also the subject are taken in account with a learned embedding of dimension 2 that is concatenated to the LSTM output just before the final affine transformation. 
+## Dependencies
+1. numpy
+2. keras
+3. tensorflow
+4. pandas
+
+## Active Prediction Entrypoint
+1. `transcript/model_predictions.py`
+
+Run from repo root:
+
+```bash
+uv run python transcript/model_predictions.py
+```
+
+## Outputs
+1. Canonical CSV predictions: `predictions/transcript/`
+2. Legacy `.npy` predictions: `predictions/transcript_legacy_npy/`
+
+## Notes
+1. Transcript vectors and model weights must be present for prediction generation.
+2. Historical transcript pipeline details in root README are legacy context, not the current operational reference.
+3. For cross-modality conventions, see `docs/team_codebase_playbook.md`.

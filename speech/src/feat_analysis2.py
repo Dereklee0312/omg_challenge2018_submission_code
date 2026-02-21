@@ -1,29 +1,26 @@
+"""Speech feature extraction utilities driven by shared STFT/sampling config."""
+
 import numpy as np
 import essentia.standard as ess
 import essentia
-import essentia
-import configparser
-import loadconfig
 import utilities_func as uf
+from speech_config import speech_stft, speech_sampling
 
-config = loadconfig.load()
-cfg = configparser.ConfigParser()
-cfg.read(config)
+stft_cfg = speech_stft()
+sampling_cfg = speech_sampling()
 
-#get values from config file
-WINDOW_SIZE = cfg.getint('stft', 'window_size')
-FFT_SIZE = cfg.getint('stft', 'fft_size')
-HOP_SIZE = cfg.getint('stft', 'hop_size')
-WINDOW_TYPE = cfg.get('stft', 'window_type')
-SR = cfg.getint('sampling', 'sr')
+# Get STFT/sampling values from shared defaults-backed speech config.
+WINDOW_SIZE = int(stft_cfg["window_size"])
+FFT_SIZE = int(stft_cfg["fft_size"])
+HOP_SIZE = int(stft_cfg["hop_size"])
+WINDOW_TYPE = str(stft_cfg["window_type"])
+SR = int(sampling_cfg["sr"])
 fps = 25  #annotations per second
 hop_annotation = SR /fps
 frames_per_annotation = hop_annotation/float(HOP_SIZE)
 
 def extract_features(x, M=WINDOW_SIZE, N=FFT_SIZE, H=HOP_SIZE, fs=SR, window_type=WINDOW_TYPE):
-    '''
-    extract magnitudes spectra from input vector and apply power-law compression
-    '''
+    """Return power-law-compressed magnitude spectra for an audio signal."""
     #init functions and vectors
     x = essentia.array(x)
     spectrum = ess.Spectrum(size=N)

@@ -1,0 +1,12 @@
+{
+  "dataset_root": "data",
+  "train_videos_dir": "data/Training/Videos",
+  "val_videos_dir": "data/Validation/Videos",
+  "train_fullbody_dir": "full_body_extracted/training",
+  "val_fullbody_dir": "full_body_extracted/validation",
+  "train_labels_dir": "data/Training/Annotations",
+  "val_labels_dir": "data/Validation/Annotations",
+  "device": "auto",
+  "log_dir": "logs",
+  "checkpoint_dir": "models/fullbody"
+}

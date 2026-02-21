@@ -1,0 +1,213 @@
+"""Build speech train/validation matrices with split-aware annotation filtering."""
+
+import numpy as np
+import os
+import utilities_func as uf
+import feat_analysis2 as fa
+import pandas
+from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+from shared_utils.config_loader import load_defaults, resolve_manifest
+from speech_config import speech_paths, speech_preprocessing, speech_sampling, speech_stft
+
+defaults = load_defaults()
+manifest = resolve_manifest(defaults)
+paths_cfg = speech_paths()
+pre_cfg = speech_preprocessing()
+sampling_cfg = speech_sampling()
+stft_cfg = speech_stft()
+
+SEQ_LENGTH = int(pre_cfg["sequence_length"])
+SEQ_OVERLAP = float(pre_cfg["sequence_overlap"])
+
+SOUND_FOLDER_T = paths_cfg["input_audio_folder_t"]
+ANNOTATION_FOLDER_T = paths_cfg["input_annotation_folder_t"]
+OUTPUT_PREDICTORS_MATRIX_T = paths_cfg["output_predictors_matrix_t"]
+OUTPUT_TARGET_MATRIX_T = paths_cfg["output_target_matrix_t"]
+
+SOUND_FOLDER_V = paths_cfg["input_audio_folder_v"]
+ANNOTATION_FOLDER_V = paths_cfg["input_annotation_folder_v"]
+OUTPUT_PREDICTORS_MATRIX_V = paths_cfg["output_predictors_matrix_v"]
+OUTPUT_TARGET_MATRIX_V = paths_cfg["output_target_matrix_v"]
+
+TARGET_SUBJECT = str(pre_cfg["target_subject"])
+TARGET_STORY = str(pre_cfg["target_story"])
+TARGET_DELAY = int(pre_cfg["target_delay"])
+SR = int(sampling_cfg["sr"])
+HOP_SIZE = int(stft_cfg["hop_size"])
+
+fps = 25  #annotations per second
+hop_annotation = SR /fps
+frames_per_annotation = hop_annotation/float(HOP_SIZE)
+#frames_per_annotation = int(np.round(frames_per_annotation))
+'''
+reminder = frames_per_annotation % 1
+
+if reminder != 0.:
+    raise ValueError('Hop size must be a divider of annotation hop (640)')
+else:
+    frames_per_annotation = int(frames_per_annotation)
+'''
+frames_delay = int(TARGET_DELAY * frames_per_annotation)
+
+
+def filter_items(contents_list, target_subj='all', target_story='all'):
+    """Filter annotation filenames by optional subject/story constraints."""
+    target_subj = str(target_subj)
+    target_story = str(target_story)
+    final_list = []
+    if target_subj == 'all':
+        subj_list = contents_list
+    else:
+        subj_list = []
+        for file in contents_list:
+            subj = file.split('Subject_')[1]
+            subj = subj.split('_')[0]
+            if subj == target_subj:
+                subj_list.append(file)
+    if target_story == 'all':
+        story_list = contents_list
+    else:
+        story_list = []
+        for file in contents_list:
+            story = file.split('Story_')[1]
+            story = story.split('.')[0]
+            if story == target_story:
+                story_list.append(file)
+                print('iiiiii')
+    for subj in subj_list:
+        if subj in story_list:
+            final_list.append(subj)
+
+    return final_list
+
+def preprocess_datapoint(input_sound, input_annotation):
+    """Extract STFT features and aligned valence targets for one sample."""
+    # Convert samples to floats
+    sr, samples = uf.wavread(input_sound)
+
+    # High-pass filter to boost high frequencies which are important for speech recognition
+    e_samples = uf.preemphasis(samples, sr)
+    
+    # Computets STFT (Short-Time Fourier Transform) of the audio signal ti get frequency content over time
+    # Raw audio is hard to learn from. Frequency features capture patterns the model can use.
+    feats = fa.extract_features(e_samples)
+    
+    # Read annotations
+    annotation = pandas.read_csv(input_annotation)  
+    annotation = annotation.values
+    annotation = np.reshape(annotation, annotation.shape[0])
+
+    # Align features and annotations by shifting annotations by target_delay
+    annotated_frames = int(len(annotation) * frames_per_annotation)
+    feats = feats[:annotated_frames]  #discard non annotated final frames
+    annotation = annotation[TARGET_DELAY:]  #shift back annotations by target_delay
+    # Trim features to match shifted annotations (only if delay > 0)
+    if frames_delay > 0:
+        feats = feats[:-frames_delay]
+
+    return feats, annotation
+
+def segment_datapoint(features, annotation, sequence_length, sequence_overlap):
+    """Segment long feature/annotation sequences into fixed-length windows."""
+    step = sequence_length*sequence_overlap  #segmentation overlap step
+    num_datapoints = int(len(annotation) / step)
+    pointer = np.arange(0,len(annotation), step, dtype='int')  #initail positions of segments
+    predictors = []
+    target = []
+    #slice arrays and append datapoints to vectors
+    for start in pointer:
+        start_annotation = start
+        stop_annotation = start + sequence_length
+        start_features = int(start_annotation * frames_per_annotation)
+        stop_features = int(stop_annotation * frames_per_annotation)
+        #print start_annotation, stop_annotation, start_features, stop_features
+        if stop_annotation <= len(annotation):
+            temp_predictors = features[start_features:stop_features]
+            temp_target = annotation[start_annotation:stop_annotation]
+            predictors.append(temp_predictors)
+            target.append(temp_target)
+            #target.append(np.mean(temp_target))
+        else:  #last datapoint has a different overlap
+            temp_predictors = features[-int(sequence_length*frames_per_annotation):]
+            temp_target = annotation[-sequence_length:]
+            predictors.append(temp_predictors)
+            target.append(temp_target)
+            #target.append(np.mean(temp_target))
+    predictors = np.array(predictors)
+    target = np.array(target)
+
+    return predictors, target
+
+
+def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', target_story='all'):
+    """Build and shuffle dataset matrices for one annotation/audio folder pair."""
+    predictors = []
+    target = []
+    annotations = os.listdir(annotation_folder)
+    # Enforce canonical split stories by annotation folder location.
+    ann_path = Path(annotation_folder).resolve()
+    train_ann = Path(defaults["paths"]["train_annotations"]).resolve()
+    val_ann = Path(defaults["paths"]["val_annotations"]).resolve()
+    if ann_path == train_ann:
+        allowed = set(manifest["stories_train"])
+    elif ann_path == val_ann:
+        allowed = set(manifest["stories_val"])
+    else:
+        allowed = set(manifest["stories_train"] + manifest["stories_val"])
+    annotations = [
+        f
+        for f in annotations
+        if any(f"_Story_{s}.csv" in f for s in allowed)
+    ]
+    filtered_list = filter_items(annotations, target_subject, target_story)
+    num_sounds = len(filtered_list)
+    #process all files in folders
+    index = 0
+    for datapoint in filtered_list:
+        print(datapoint)
+        annotation_file = annotation_folder + '/' + datapoint
+        name = datapoint.split('.')[0]
+        sound_file = sound_folder + '/' + name +".mp4.wav"  #get correspective sound
+        long_predictors, long_target = preprocess_datapoint(sound_file, annotation_file)  #compute features
+        cut_predictors, cut_target = segment_datapoint(long_predictors, long_target,   #slice feature maps
+                                                        SEQ_LENGTH, SEQ_OVERLAP)
+
+        predictors.append(cut_predictors)
+        target.append(cut_target)
+        perc_progress = (index * 100) / num_sounds
+        index += 1
+        print("processed files: " + str(index) + " over " + str(num_sounds) + "  |  progress: " + str(perc_progress) + "%")
+
+    predictors = np.concatenate(predictors, axis=0)  #reshape arrays
+    target = np.concatenate(target, axis=0)
+    #scramble datapoints order
+    shuffled_predictors = []
+    shuffled_target = []
+    num_datapoints = target.shape[0]
+    random_indices = list(range(num_datapoints))
+    np.random.shuffle(random_indices)
+    for i in random_indices:
+        shuffled_predictors.append(predictors[i])
+        shuffled_target.append(target[i])
+    shuffled_predictors = np.array(shuffled_predictors)
+    shuffled_target = np.array(shuffled_target)
+
+    return shuffled_predictors, shuffled_target
+
+def build_matrices(output_predictors_matrix, output_target_matrix, sound_folder, annotation_folder):
+    """Create and save predictors/target matrices to `.npy` files."""
+    predictors, target = preprocess_dataset(sound_folder, annotation_folder, TARGET_SUBJECT, TARGET_STORY)
+    np.save(output_predictors_matrix, predictors)
+    np.save(output_target_matrix, target)
+    print("Matrices saved succesfully")
+    print('predictors shape: ' + str(predictors.shape))
+    print('target shape: ' + str(target.shape))
+
+
+if __name__ == '__main__':
+    """Build both training and validation matrices using shared defaults."""
+    build_matrices(OUTPUT_PREDICTORS_MATRIX_T, OUTPUT_TARGET_MATRIX_T, SOUND_FOLDER_T, ANNOTATION_FOLDER_T)
+    build_matrices(OUTPUT_PREDICTORS_MATRIX_V, OUTPUT_TARGET_MATRIX_V, SOUND_FOLDER_V, ANNOTATION_FOLDER_V)

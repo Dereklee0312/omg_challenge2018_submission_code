@@ -18,10 +18,28 @@ This is an ensemble multimodal model developed for the [OMG Empathy Challenge 20
 
 This model integrates predictions from different sources (video, audio, and dialogue transcript). To run the full model, each individual module needs to be run separately and the prediction of each of them integrated using one of the proposed methods (Regression model, Smoothed weighted average model or K-nearest Neighbours Model).
 
+## Current Operational Docs
+Use these as the current source for execution and path conventions:
+1. Team codebase guide: `docs/team_codebase_playbook.md`
+2. Infrastructure paths runbook: `docs/runbook_infra_paths.md`
+3. Modality READMEs:
+   1. `speech/README.md`
+   2. `transcript/README.md`
+   3. `raw_face/README.md`
+   4. `landmarks/README.md`
+
+## Historical Sections in This README
+Some lower sections in this README describe earlier transcript pipeline walkthroughs and legacy script names.
+Treat those sections as historical context unless they match the current docs listed above.
+
 The overall diagram of the model is the following:
 <p>
 <img src="model.png" width="860">
 </p>
+
+### Hardware Acceleration Notes (Fullbody)
+- Apple Silicon: install `tensorflow-macos` + `tensorflow-metal` to enable GPU via Metal, then set `"device": "auto"` or `"gpu"` in `fullbody/config.json`.
+- NVIDIA CUDA: install a CUDA-enabled TensorFlow build for your OS/driver (see TensorFlow GPU docs), then set `"device": "auto"` or `"gpu"` in `fullbody/config.json`.
 
 
 ### Overview of the Pipeline

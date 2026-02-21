@@ -1,0 +1,104 @@
+@startmindmap
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontSize 12
+skinparam mindmapMaxNodeWidth 300
+
+* Popular Machine Learning Models
+** Supervised Learning
+*** Definition: Models trained on labeled data to predict outputs; focuses on mapping inputs to known targets.
+*** Linear Regression
+**** Tasks: Predicting continuous values (e.g., house prices, stock values).
+**** Why Chosen: Simple, interpretable, assumes linear relationships; fast training, low computational cost.
+**** Details: Uses least squares minimization; prone to underfitting if data is non-linear; extensions include Ridge/Lasso for regularization.
+*** Logistic Regression
+**** Tasks: Binary or multi-class classification (e.g., spam detection, disease diagnosis).
+**** Why Chosen: Probabilistic outputs via sigmoid/softmax; interpretable coefficients; handles linear separability well.
+**** Details: Extension of linear regression for classification; uses log-loss; regularized variants prevent overfitting.
+*** Decision Trees
+**** Tasks: Classification and regression (e.g., customer segmentation, risk assessment).
+**** Why Chosen: Highly interpretable (tree structure); handles non-linear data and mixed types; no normalization needed.
+**** Details: Splits data based on feature thresholds; prone to overfitting; use pruning or ensembles like Random Forests.
+*** Random Forests
+**** Tasks: Classification/regression in complex datasets (e.g., fraud detection, image classification).
+**** Why Chosen: Ensemble of decision trees reduces overfitting; high accuracy; feature importance ranking.
+**** Details: Bagging with random feature subsets; robust to noise; slower than single trees but parallelizable.
+*** Support Vector Machines (SVM)
+**** Tasks: Classification, regression (e.g., text categorization, bioinformatics).
+**** Why Chosen: Effective in high-dimensional spaces; maximizes margin for better generalization; kernel trick for non-linearity.
+**** Details: Uses support vectors; kernels like RBF for complex boundaries; computationally intensive for large data.
+*** K-Nearest Neighbors (KNN)
+**** Tasks: Classification/regression (e.g., recommendation systems, anomaly detection).
+**** Why Chosen: Instance-based (lazy learning); simple, no training phase; effective for local patterns.
+**** Details: Distance-based (e.g., Euclidean); sensitive to scale and outliers; choose K via cross-validation.
+*** Naive Bayes
+**** Tasks: Classification (e.g., sentiment analysis, document classification).
+**** Why Chosen: Fast, probabilistic; assumes feature independence; performs well on text data.
+**** Details: Based on Bayes' theorem; variants like Gaussian/Multinomial; robust to irrelevant features.
+*** Neural Networks (Feedforward)
+**** Tasks: Complex pattern recognition (e.g., image/speech processing).
+**** Why Chosen: Universal approximators; learn hierarchical features; scalable with data/hardware.
+**** Details: Layers of neurons with activations (e.g., ReLU); trained via backpropagation; risk of overfitting without regularization.
+**** Variants: CNNs for grids (images/sequences); RNNs/LSTMs for sequences (time series/NLP).
+** Unsupervised Learning
+*** Definition: Models identify patterns in unlabeled data; useful for exploration and preprocessing.
+*** K-Means Clustering
+**** Tasks: Grouping similar data (e.g., market segmentation, image compression).
+**** Why Chosen: Simple, scalable; partitions data into K clusters based on centroids.
+**** Details: Iterative assignment/update; sensitive to initialization (use K-Means++); choose K via elbow/silhouette methods.
+*** Hierarchical Clustering
+**** Tasks: Building dendrograms for nested groups (e.g., taxonomy, gene expression).
+**** Why Chosen: No need to specify clusters upfront; visualizes hierarchy.
+**** Details: Agglomerative (bottom-up) or divisive; linkage methods (e.g., ward); computationally expensive for large N.
+*** Principal Component Analysis (PCA)
+**** Tasks: Dimensionality reduction (e.g., feature extraction, visualization).
+**** Why Chosen: Linear technique; maximizes variance; reduces multicollinearity.
+**** Details: Eigen decomposition of covariance; select components by explained variance; assumes linearity.
+*** Autoencoders
+**** Tasks: Anomaly detection, denoising, feature learning (e.g., image reconstruction).
+**** Why Chosen: Neural network-based; learns compressed representations; unsupervised deep learning.
+**** Details: Encoder-decoder structure; variants like variational for generative tasks.
+*** Generative Adversarial Networks (GANs)
+**** Tasks: Data generation (e.g., synthetic images, style transfer).
+**** Why Chosen: Produces realistic samples; adversarial training improves quality.
+**** Details: Generator vs. Discriminator; unstable training; extensions like DCGAN for stability.
+** Semi-Supervised Learning
+*** Definition: Combines limited labeled data with abundant unlabeled; leverages patterns to improve efficiency.
+*** Self-Training
+**** Tasks: When labels are scarce (e.g., web page classification).
+**** Why Chosen: Iterative pseudo-labeling; boosts performance with unlabeled data.
+**** Details: Train on labeled, predict on unlabeled, add confident predictions; risk of error propagation.
+*** Graph-Based Methods
+**** Tasks: Label propagation (e.g., social networks).
+**** Why Chosen: Uses data similarity graphs; smooths labels across connections.
+**** Details: Algorithms like Label Spreading; effective for structured data.
+** Reinforcement Learning
+*** Definition: Agent learns via trial-and-error interactions with environment; optimizes rewards.
+*** Q-Learning
+**** Tasks: Discrete action spaces (e.g., game playing, robotics pathfinding).
+**** Why Chosen: Off-policy; tabular or with function approximation; model-free.
+**** Details: Updates Q-values based on Bellman equation; exploration via epsilon-greedy.
+*** Deep Q-Networks (DQN)
+**** Tasks: High-dimensional states (e.g., Atari games, autonomous driving).
+**** Why Chosen: Combines Q-Learning with deep nets; handles image inputs.
+**** Details: Experience replay, target networks for stability; variants like Double DQN.
+*** Policy Gradient Methods (e.g., REINFORCE, PPO)
+**** Tasks: Continuous actions (e.g., robot control, portfolio optimization).
+**** Why Chosen: Directly optimizes policy; handles stochastic environments.
+**** Details: Gradient ascent on expected rewards; PPO clips for stable updates.
+** Ensemble Methods
+*** Definition: Combine multiple models for improved performance; reduces variance/bias.
+*** Boosting (e.g., XGBoost, AdaBoost)
+**** Tasks: Tabular data prediction (e.g., competitions like Kaggle).
+**** Why Chosen: Sequential error correction; high accuracy; handles missing data.
+**** Details: XGBoost: Gradient boosting with regularization; fast, scalable.
+*** Bagging (e.g., Random Forests)
+**** Tasks: As above; stabilizes unstable learners.
+**** Why Chosen: Parallel training; reduces variance.
+**** Details: Bootstrap sampling; out-of-bag evaluation.
+** Key Considerations Across Models
+*** Data Requirements: Supervised needs labels; unsupervised explores structure.
+*** Evaluation: Supervised (accuracy, F1); Unsupervised (silhouette, inertia); RL (cumulative reward).
+*** Trade-offs: Interpretability vs. Accuracy (trees simple, NNs black-box); Compute (simple models fast, deep learning resource-intensive).
+*** Trends: Transfer learning, hybrid models (e.g., CNN + RNN); ethical aspects (bias mitigation).
+@endmindmap

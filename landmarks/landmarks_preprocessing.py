@@ -1,11 +1,12 @@
+"""Extract face crops, coordinates, and landmarks for train/validation splits."""
+
 import cv2
 import os
 import dlib
 
-import subprocess
-import shutil
 from shutil import copyfile
 import sys
+from pathlib import Path
 
 import numpy as np
 import time
@@ -13,27 +14,37 @@ import time
 from matplotlib import pyplot as plt
 import re
 
-def sorted_nicely( l ):
-    """ Sort the given iterable in the way that humans expect."""
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from shared_utils.config_loader import load_defaults, resolve_repo_path
+
+BASE_DIR = Path(__file__).resolve().parent
+TMP_DIR = BASE_DIR / "tmp"
+
+
+def sorted_nicely(l):
+    """Sort the given iterable in the way that humans expect."""
     convert = lambda text: int(text) if text.isdigit() else text
-    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
-    return sorted(l, key = alphanum_key)
+    alphanum_key = lambda key: [convert(c) for c in re.split("([0-9]+)", key)]
+    return sorted(l, key=alphanum_key)
 
 
 def progressBar(value, endvalue, bar_length=20):
+    """Render simple in-place progress bar for long video processing."""
     percent = float(value) / endvalue
-    arrow = '-' * int(round(percent * bar_length) - 1) + '>'
-    spaces = ' ' * (bar_length - len(arrow))
+    arrow = "-" * int(round(percent * bar_length) - 1) + ">"
+    spaces = " " * (bar_length - len(arrow))
 
-    sys.stdout.write("\rPercent: [{0}] {1}%".format(arrow + spaces, int(round(percent * 100))))
+    sys.stdout.write(
+        "\rPercent: [{0}] {1}%".format(arrow + spaces, int(round(percent * 100)))
+    )
     sys.stdout.flush()
 
 
-def extractFramesFromVideo(path,savePath, faceDetectorPrecision):
+def extractFramesFromVideo(path, savePath, faceDetectorPrecision):
+    """Run face detection/tracking per frame and persist crops + landmarks."""
     videos = sorted_nicely(os.listdir(path + "/"))
-    if '.DS_Store' in videos:
-        videos.remove('.DS_Store')
-
+    if ".DS_Store" in videos:
+        videos.remove(".DS_Store")
 
     for video in videos:
         video = video[:-4]
@@ -43,13 +54,12 @@ def extractFramesFromVideo(path,savePath, faceDetectorPrecision):
         print("- Processing Video:", videoPath + " ...")
         dataX = []
 
-        copyTarget = "tmp/current_video.mp4"
-        if not os.path.exists("tmp/"):
-            os.makedirs("tmp/")
+        copyTarget = TMP_DIR / "current_video.mp4"
+        TMP_DIR.mkdir(parents=True, exist_ok=True)
 
         print("--- Copying file:", videoPath + " ...")
-        copyfile(videoPath, copyTarget)
-        cap = cv2.VideoCapture(copyTarget)
+        copyfile(videoPath, str(copyTarget))
+        cap = cv2.VideoCapture(str(copyTarget))
 
         totalFrames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         numberOfImages = 0
@@ -66,14 +76,15 @@ def extractFramesFromVideo(path,savePath, faceDetectorPrecision):
         savePathActorFaceLandmarks = savePath + "/" + video + "/Actor_face_landmarks/"
 
         savePathSubjectFaceXY = savePath + "/" + video + "/Subject_face_coordinates/"
-        savePathSubjectFaceLandmarks = savePath + "/" + video + "/Subject_face_landmarks/"
-
+        savePathSubjectFaceLandmarks = (
+            savePath + "/" + video + "/Subject_face_landmarks/"
+        )
 
         faceActor = np.zeros((totalFrames, 4), dtype=int)
-        landmarksActor = np.zeros((totalFrames, 68*2), dtype=int)
+        landmarksActor = np.zeros((totalFrames, 68 * 2), dtype=int)
 
         faceSubject = np.zeros((totalFrames, 4), dtype=int)
-        landmarksSubject = np.zeros((totalFrames, 68*2), dtype=int)
+        landmarksSubject = np.zeros((totalFrames, 68 * 2), dtype=int)
 
         if not os.path.exists(savePathActorFace):
             os.makedirs(savePathActorFace)
@@ -84,15 +95,16 @@ def extractFramesFromVideo(path,savePath, faceDetectorPrecision):
             os.makedirs(savePathSubjectFaceXY)
             os.makedirs(savePathSubjectFaceLandmarks)
 
-        while (check):
+        while check:
             check, img = cap.read()
             if img is not None:
-
-
-                #Extract actor face
+                # Extract actor face
                 imageActor = img[0:720, 0:1280]
 
-                if lastImageWithFaceDetected == 0 or lastImageWithFaceDetected > faceDetectorPrecision:
+                if (
+                    lastImageWithFaceDetected == 0
+                    or lastImageWithFaceDetected > faceDetectorPrecision
+                ):
                     dets = detector(imageActor, 1)
                     lastImageWithFaceDetected = 0
 
@@ -104,8 +116,12 @@ def extractFramesFromVideo(path,savePath, faceDetectorPrecision):
                 try:
                     if not len(dets) == 0:
                         for i, d in enumerate(dets):
-                            croped = imageActor[d.top():d.bottom(), d.left():d.right()]
-                            cv2.imwrite(savePathActorFace + "/%d.png" % imageNumber, croped)
+                            croped = imageActor[
+                                d.top() : d.bottom(), d.left() : d.right()
+                            ]
+                            cv2.imwrite(
+                                savePathActorFace + "/%d.png" % imageNumber, croped
+                            )
 
                             faceActor[imageNumber] = rects_to_np(d)
 
@@ -114,10 +130,13 @@ def extractFramesFromVideo(path,savePath, faceDetectorPrecision):
 
                     else:
                         if not imageNumber == 0:
-                            faceActor[imageNumber] = faceActor[imageNumber-1]
-                            landmarksActor[imageNumber] = landmarksActor[imageNumber-1]
-                        cv2.imwrite(savePathActorFace + "/%d.png" % imageNumber, imageActor)
-
+                            faceActor[imageNumber] = faceActor[imageNumber - 1]
+                            landmarksActor[imageNumber] = landmarksActor[
+                                imageNumber - 1
+                            ]
+                        cv2.imwrite(
+                            savePathActorFace + "/%d.png" % imageNumber, imageActor
+                        )
 
                 except:
                     print("------error1!")
@@ -125,7 +144,10 @@ def extractFramesFromVideo(path,savePath, faceDetectorPrecision):
                 # Extract Subject Face
                 imageSubject = img[0:720, 1280:2560]
 
-                if lastImageWithFaceDetected == 0 or lastImageWithFaceDetected > faceDetectorPrecision:
+                if (
+                    lastImageWithFaceDetected == 0
+                    or lastImageWithFaceDetected > faceDetectorPrecision
+                ):
                     dets = detector(imageSubject, 1)
                     lastImageWithFaceDetected = 0
 
@@ -137,41 +159,64 @@ def extractFramesFromVideo(path,savePath, faceDetectorPrecision):
                 try:
                     if not len(dets) == 0:
                         for i, d in enumerate(dets):
-                            croped = imageSubject[d.top():d.bottom(), d.left():d.right()]
-                            cv2.imwrite(savePathSubjectFace + "/%d.png" % imageNumber, croped)
+                            croped = imageSubject[
+                                d.top() : d.bottom(), d.left() : d.right()
+                            ]
+                            cv2.imwrite(
+                                savePathSubjectFace + "/%d.png" % imageNumber, croped
+                            )
 
-                            faceSubject[imageNumber] = rects_to_np(d) + np.array([1280,0,1280,0])
+                            faceSubject[imageNumber] = rects_to_np(d) + np.array(
+                                [1280, 0, 1280, 0]
+                            )
 
-                            landmarks = dlib_determine_landmarks(d, imageSubject) + np.array([1280,0])
+                            landmarks = dlib_determine_landmarks(
+                                d, imageSubject
+                            ) + np.array([1280, 0])
                             landmarksSubject[imageNumber] = landmarks.flatten()
 
                             # Just for testing..
                             if imageNumber == 0 and False:
                                 plt.figure()
-                                #plt.imshow(cv2.cvtColor(draw_pic, cv2.COLOR_BGR2RGB))
-                                cv2.rectangle(img, (faceSubject[imageNumber][0],faceSubject[imageNumber][1]),
-                                (faceSubject[imageNumber][2],faceSubject[imageNumber][3]), (255,0,0), 2)
+                                # plt.imshow(cv2.cvtColor(draw_pic, cv2.COLOR_BGR2RGB))
+                                cv2.rectangle(
+                                    img,
+                                    (
+                                        faceSubject[imageNumber][0],
+                                        faceSubject[imageNumber][1],
+                                    ),
+                                    (
+                                        faceSubject[imageNumber][2],
+                                        faceSubject[imageNumber][3],
+                                    ),
+                                    (255, 0, 0),
+                                    2,
+                                )
                                 plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                                plt.title('dlib landmark points')
+                                plt.title("dlib landmark points")
                                 plt.show()
                             if imageNumber == 0 and False:
                                 # show the output image with the face detections + facial landmarks
                                 draw_pic = img.copy()
                                 # loop over the (x, y)-coordinates for the facial landmarks
                                 # and draw them on the image
-                                for (x, y) in landmarks:
+                                for x, y in landmarks:
                                     cv2.circle(draw_pic, (x, y), 1, (0, 0, 255), -1)
                                 plt.figure()
                                 plt.imshow(cv2.cvtColor(draw_pic, cv2.COLOR_BGR2RGB))
-                                plt.title('dlib landmark points')
+                                plt.title("dlib landmark points")
                                 plt.show()
 
                     else:
                         if not imageNumber == 0:
-                            faceSubject[imageNumber] = faceSubject[imageNumber-1]
-                            landmarksSubject[imageNumber] = landmarksSubject[imageNumber-1]
+                            faceSubject[imageNumber] = faceSubject[imageNumber - 1]
+                            landmarksSubject[imageNumber] = landmarksSubject[
+                                imageNumber - 1
+                            ]
 
-                        cv2.imwrite(savePathSubjectFace + "/%d.png" % imageNumber, imageSubject)
+                        cv2.imwrite(
+                            savePathSubjectFace + "/%d.png" % imageNumber, imageSubject
+                        )
 
                 except:
                     print("------error2!")
@@ -180,21 +225,43 @@ def extractFramesFromVideo(path,savePath, faceDetectorPrecision):
                 lastImageWithFaceDetected = lastImageWithFaceDetected + 1
                 progressBar(imageNumber, totalFrames)
 
-        np.savetxt(savePathActorFaceXY + "faceActor.csv", faceActor.astype(int), fmt='%i', delimiter=",")
-        np.savetxt(savePathActorFaceLandmarks + "landmarksActor.csv", landmarksActor.astype(int), fmt='%i', delimiter=",")
+        np.savetxt(
+            savePathActorFaceXY + "faceActor.csv",
+            faceActor.astype(int),
+            fmt="%i",
+            delimiter=",",
+        )
+        np.savetxt(
+            savePathActorFaceLandmarks + "landmarksActor.csv",
+            landmarksActor.astype(int),
+            fmt="%i",
+            delimiter=",",
+        )
 
-        np.savetxt(savePathSubjectFaceXY + "faceSubject.csv", faceSubject.astype(int), fmt='%i', delimiter=",")
-        np.savetxt(savePathSubjectFaceLandmarks + "landmarksSubject.csv", landmarksSubject.astype(int), fmt='%i', delimiter=",")
+        np.savetxt(
+            savePathSubjectFaceXY + "faceSubject.csv",
+            faceSubject.astype(int),
+            fmt="%i",
+            delimiter=",",
+        )
+        np.savetxt(
+            savePathSubjectFaceLandmarks + "landmarksSubject.csv",
+            landmarksSubject.astype(int),
+            fmt="%i",
+            delimiter=",",
+        )
 
-        print('\nRunning time: %f seconds\n' %(time.time() - start_time))
+        print("\nRunning time: %f seconds\n" % (time.time() - start_time))
+
 
 def dlib_determine_landmarks(rect, img):
+    """Return 68-point landmarks for a detected face rectangle."""
     # returns the landmarks of each face
     # landmarks has shape [#landmarks=68, #coordinates=2]
 
     # predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
 
-    landmarks = np.zeros([68,2],dtype=int)
+    landmarks = np.zeros([68, 2], dtype=int)
 
     # determine the facial landmarks for the face region, then
     # convert the facial landmark (x, y)-coordinates to a NumPy
@@ -209,62 +276,69 @@ def dlib_determine_landmarks(rect, img):
         draw_pic = img.copy()
         # loop over the (x, y)-coordinates for the facial landmarks
         # and draw them on the image
-        for (x, y) in landmarks:
-                cv2.circle(draw_pic, (x, y), 1, (0, 0, 255), -1)
+        for x, y in landmarks:
+            cv2.circle(draw_pic, (x, y), 1, (0, 0, 255), -1)
         plt.figure()
         plt.imshow(cv2.cvtColor(draw_pic, cv2.COLOR_BGR2RGB))
-        plt.title('dlib landmark points')
+        plt.title("dlib landmark points")
         plt.show()
 
-    #print(landmarks.shape)
+    # print(landmarks.shape)
     return landmarks
 
+
 def shape_to_np(shape, dtype="int"):
-	# initialize the list of (x, y)-coordinates
-	coords = np.zeros((68, 2), dtype=dtype)
+    """Convert dlib shape object into `(68, 2)` NumPy array."""
+    # initialize the list of (x, y)-coordinates
+    coords = np.zeros((68, 2), dtype=dtype)
 
-	# loop over the 68 facial landmarks and convert them
-	# to a 2-tuple of (x, y)-coordinates
-	for i in range(0, 68):
-		coords[i] = (shape.part(i).x, shape.part(i).y)
+    # loop over the 68 facial landmarks and convert them
+    # to a 2-tuple of (x, y)-coordinates
+    for i in range(0, 68):
+        coords[i] = (shape.part(i).x, shape.part(i).y)
 
-	# return the list of (x, y)-coordinates
-	return coords
+    # return the list of (x, y)-coordinates
+    return coords
 
 
 def rects_to_np(rect):
-
+    """Convert dlib rectangle to `[x1, y1, x2, y2]` array."""
     # take a bounding predicted by dlib and convert it
     # to the format (x1, y1, x2, y2), where (x1,y1) is a vertex of the
     # rectangle and (x2,y2) is the vertex opposite to (x1,y1))
 
-    faceRects = np.zeros([1,4],dtype=int)
+    faceRects = np.zeros([1, 4], dtype=int)
 
     x1 = int(rect.left())
     y1 = int(rect.top())
     x2 = int(rect.right())
     y2 = int(rect.bottom())
-    faceRects = np.array([[x1,y1,x2,y2]])
-    #print(faceRects.shape)
+    faceRects = np.array([[x1, y1, x2, y2]])
+    # print(faceRects.shape)
     return faceRects
 
 
-
-
 if __name__ == "__main__":
+    defaults = load_defaults()
+    # Path where the videos are
+    trainingVideosPath = defaults["paths"]["train_videos"]
+    validationVideosPath = defaults["paths"]["val_videos"]
 
-
-    #Path where the videos are
-    path = "../omg_dataset/OMG_Empathy2019_testSet/Videos"
-
-    #Path where the faces will be saved
-    savePath ="faces_extracted/"
+    # Path where the faces will be saved
+    savePathTraining = defaults["paths"]["landmarks_train"] + "/"
+    savePathValidation = defaults["paths"]["landmarks_val"] + "/"
+    # Keep temporary work directory stable regardless of invocation directory.
+    TMP_DIR = resolve_repo_path(defaults["paths"].get("landmarks_tmp_dir", "landmarks/tmp"))
 
     # If 1, the face detector will act upon each of the frames. If 1000, the face detector update its position every 1000 frames.
     # Actually: if 9, the face detector update its position every 10 frames.
     faceDetectorPrecision = 9
 
     detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
+    predictor_path = BASE_DIR / "shape_predictor_68_face_landmarks.dat"
+    predictor = dlib.shape_predictor(str(predictor_path))
 
-    extractFramesFromVideo(path, savePath, faceDetectorPrecision)
+    extractFramesFromVideo(trainingVideosPath, savePathTraining, faceDetectorPrecision)
+    extractFramesFromVideo(
+        validationVideosPath, savePathValidation, faceDetectorPrecision
+    )

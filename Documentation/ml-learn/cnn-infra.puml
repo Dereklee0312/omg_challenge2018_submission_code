@@ -1,0 +1,88 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam nodesep 50
+skinparam ranksep 50
+
+package "Input Data" {
+  [Raw Data\n(e.g., Sequence: time x features\nImage: H x W x C)] as Input
+}
+
+package "Feature Extraction Backbone" {
+
+  package "Conv Block 1" {
+    [Convolution\n(filters=64-128: Number of output channels; higher values capture more patterns but increase params.\nkernel=3-5: Size of filter window; smaller for local details, larger for broader context.\nActivation: ReLU - Introduces non-linearity, mitigates vanishing gradients.)] as Conv1
+    [Batch Normalization\n(Normalizes activations across batch; stabilizes training, reduces covariate shift, acts as regularizer.)] as BN1
+    [Optional: Pooling\n(Max: Retains strongest features; Average: Smooths representations; Reduces spatial dimensions, controls overfitting.)] as Pool1
+  }
+
+  package "Conv Block 2" {
+    [Convolution\n(filters=128-256: Increases capacity for complex features.\nkernel=3-5: Consistent sizing builds hierarchical receptive fields.\nReLU: Same as above.)] as Conv2
+    [Batch Normalization\n(Same as above; applied per block for consistency.)] as BN2
+    [Optional: Pooling\n(Same options; progressively downsample to manage computation.)] as Pool2
+  }
+
+  package "Conv Block N" {
+    [Convolution\n(filters=higher: Further expansion for abstraction.\nkernel=3-5: Maintains pattern detection scale.\nReLU: Ensures non-linear transformations.)] as ConvN
+    [Batch Normalization\n(Continues stabilization in deeper layers.)] as BNN
+    [Optional: Pooling\n(Final reduction before transition; options as above.)] as PoolN
+  }
+}
+
+package "Transition / Reduction" {
+  [Global Average Pooling\n(Averages across dimensions to produce fixed-size vector; reduces params, prevents overfitting.)\nor Flatten\n(Reshapes to 1D vector; simpler but can lead to large dense layers.)] as GAP
+}
+
+package "Classification / Regression Head" {
+
+  [Dense Layer\n(128-512 units: Compresses features; fewer units for regularization.\nReLU: Non-linearity.\nOptional Dropout: Randomly drops units during training (rate 0.3-0.5) to prevent overfitting.)] as Dense1
+
+  [Optional Additional Dense\n(For further refinement; adds depth to head but increases params.)] as DenseExtra
+
+  [Output Dense\n(units = target: Matches output needs (e.g., 1 for regression, classes for classification).\nActivation: softmax (probabilities for multi-class), sigmoid (binary), linear (regression values).)] as Output
+}
+
+Input --> Conv1
+Conv1 --> BN1
+BN1 --> Pool1
+Pool1 --> Conv2
+Conv2 --> BN2
+BN2 --> Pool2
+Pool2 --> ConvN
+ConvN --> BNN
+BNN --> PoolN
+PoolN --> GAP
+GAP --> Dense1
+Dense1 --> DenseExtra
+DenseExtra --> Output
+
+note right of Input
+  Adapt shape to data type:
+  - 1D: Conv1D for time series (e.g., signals); processes along time axis.
+  - 2D: Conv2D for images; handles height/width.
+  - 3D: Conv3D for videos/volumes; adds depth/time dimension.
+end note
+
+note bottom of Conv1
+  Early blocks: Detect low-level features (e.g., edges, trends).
+  Deeper blocks: Abstract high-level patterns (e.g., objects, events).
+  Gradually increase filter count: Builds representational power without early overload.
+end note
+
+note right of GAP
+  Collapses spatial/temporal dimensions: Produces invariant summaries.
+  Reduces parameters and overfitting risk: Avoids excessive connections in head.
+end note
+
+note right of Output
+  Task-dependent activations:
+  - Multi-class: softmax - Normalizes to probability distribution.
+  - Binary: sigmoid - Outputs 0-1 probability.
+  - Regression: linear - Direct scalar output without bounding.
+end note
+
+note top of Dense1
+  Dropout (e.g., 0.3-0.5): Enhances generalization by ensemble-like effect during training.
+end note
+
+@enduml

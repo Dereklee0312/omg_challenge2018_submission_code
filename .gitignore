@@ -1,5 +1,7 @@
 myenv
-data
+data/text
+data/Training
+data/Validation
 transcript/vectors/val2/text
 logs/lexicons_2025-08-26_21_29_36/train
 .vscode
@@ -31,3 +33,19 @@ transcript_rawface/vectors/val2
 transcript_rawface/test_prediction_FINAL
 speech/speech_predictions
 transcript_rawface/speech_predictions
+Multimodal - Transcript + Raw Face + Speech/models
+Multimodal - Transcript + Raw Face + Speech/rawface_predictions
+Multimodal - Transcript + Raw Face + Speech/speech_predictions
+Multimodal - Transcript + Raw Face + Speech/test_prediction_FINAL
+Multimodal - Transcript + Raw Face + Speech/transcript_predictions
+Multimodal - Transcript + Raw Face + Speech/vectors/val2
+landmarks/experiment_2026-01-03_23_47_43
+landmarks/experiment_2026-01-04_13_05_48
+landmarks/predictions_test_FINAL
+raw_face/model
+full_body_extracted
+*/__pycache__
+predictions/speech
+speech/src/__pycache__
+landmarks/experiments/experiment_2026-02-17_22_18_26
+landmarks/experiments

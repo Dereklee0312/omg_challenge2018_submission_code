@@ -1,0 +1,64 @@
+{
+  "manifest_path": "configs/splits/current_repo.yaml",
+  "paths": {
+    "train_annotations": "data/Training/Annotations",
+    "val_annotations": "data/Validation/Annotations",
+    "train_videos": "data/Training/Videos",
+    "val_videos": "data/Validation/Videos",
+    "train_audio": "data/Training/audio",
+    "val_audio": "data/Validation/audio",
+    "landmarks_train": "landmarks/faces_extracted/training",
+    "landmarks_val": "landmarks/faces_extracted/validation",
+    "fullbody_train": "full_body_extracted/training",
+    "fullbody_val": "full_body_extracted/validation",
+    "rawface_model": "raw_face/model/conv_3D_raw_face.13-0.06.keras",
+    "rawface_faces_root": "data/extracted_faces",
+    "rawface_legacy_predictions": "predictions/rawface_legacy_npy",
+    "transcript_legacy_predictions": "predictions/transcript_legacy_npy",
+    "landmarks_tmp_dir": "landmarks/tmp"
+  },
+  "speech": {
+    "stft": {
+      "window_size": 256,
+      "fft_size": 256,
+      "hop_size": 160,
+      "window_type": "hann"
+    },
+    "sampling": {
+      "sr": 16000
+    },
+    "preprocessing": {
+      "sequence_length": 200,
+      "sequence_overlap": 0.5,
+      "target_subject": "all",
+      "target_story": "all",
+      "target_delay": 0
+    },
+    "paths": {
+      "input_audio_folder_t": "data/Training/audio",
+      "input_annotation_folder_t": "data/Training/Annotations",
+      "output_predictors_matrix_t": "speech/dataset/matrices/training_2A_S_predictors.npy",
+      "output_target_matrix_t": "speech/dataset/matrices/training_2A_S_target.npy",
+      "input_audio_folder_v": "data/Validation/audio",
+      "input_annotation_folder_v": "data/Validation/Annotations",
+      "output_predictors_matrix_v": "speech/dataset/matrices/validation_2A_S_predictors.npy",
+      "output_target_matrix_v": "speech/dataset/matrices/validation_2A_S_target.npy",
+      "load_model": "speech/models/bigru_PROVA2.keras",
+      "save_model": "speech/models/bigru_PROVA2.keras",
+      "last_latent_dim_dir": "speech/last_latent_dim",
+      "training_predictors_load": "speech/dataset/matrices/training_2A_S_predictors.npy",
+      "training_target_load": "speech/dataset/matrices/training_2A_S_target.npy",
+      "validation_predictors_load": "speech/dataset/matrices/validation_2A_S_predictors.npy",
+      "validation_target_load": "speech/dataset/matrices/validation_2A_S_target.npy",
+      "reference_predictors_load": "speech/dataset/matrices/training_2A_S_predictors.npy",
+      "evaluation_predictors_load": "speech/dataset/matrices/validation_2A_S_predictors.npy",
+      "evaluation_target_load": "speech/dataset/matrices/validation_2A_S_target.npy",
+      "model_output_folder": "speech/model_output",
+      "speech_predictions_dir": "speech/speech_predictions"
+    }
+  },
+  "predictions": {
+    "base_dir": "predictions",
+    "modalities": ["rawface", "landmarks", "fullbody", "speech", "transcript"]
+  }
+}

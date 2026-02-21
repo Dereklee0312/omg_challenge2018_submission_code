@@ -1,0 +1,83 @@
+@startmindmap
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontSize 12
+skinparam mindmapMaxNodeWidth 320
+
+* Popular Deep Learning Models
+** Core Characteristics
+*** Definition: Neural networks with multiple layers; learn hierarchical representations via backpropagation.
+*** Strengths: High performance on complex data (images, text, sequences); scalable with data/GPUs.
+*** Weaknesses: Data-hungry; computationally intensive; less interpretable; risk of overfitting.
+** Feedforward Neural Networks (MLP)
+*** Tasks: Tabular data regression/classification; baseline for structured data.
+*** Why Chosen: Simple fully connected layers; universal function approximators.
+*** Details: Dense layers with activations (ReLU); used when spatial/temporal structure is absent.
+*** Variants: Wide & Deep models; often outperformed by specialized architectures.
+** Convolutional Neural Networks (CNNs)
+*** Tasks: Image classification, object detection, segmentation; time series/1D signals.
+*** Why Chosen: Exploit spatial locality via convolutions; parameter sharing; translation invariance.
+*** Key Components: Conv layers, pooling, batch norm; heads for tasks.
+*** Classic/Early
+**** LeNet (1998): Digit recognition; small conv-pool stacks.
+**** AlexNet (2012): Deep ReLU + Dropout; ImageNet winner.
+**** VGG (2014): Uniform 3x3 convs; strong feature extractor.
+*** Depth-Optimized
+**** ResNet (2015): Residual connections; enables 100+ layers; mitigates vanishing gradients.
+**** Variants: ResNet-50/101/152; widely used backbone.
+*** Efficiency-Focused
+**** MobileNet (V1-V3): Depthwise separable convs; lightweight for mobile/edge.
+**** EfficientNet (B0-B7): Compound scaling of depth/width/resolution; SOTA accuracy-efficiency.
+*** Multi-Scale/Parallel
+**** Inception/GoogLeNet: Parallel convs (1x1,3x3,5x5); reduces params.
+**** Xception: Extreme Inception with depthwise separables.
+*** Dense Connectivity
+**** DenseNet: Each layer connects to all subsequent; feature reuse; fewer params.
+*** Modern CNNs
+**** ConvNeXt (2022): Modernized ResNet; competes with Transformers.
+** Recurrent Neural Networks (RNNs)
+*** Tasks: Sequence modeling (early); largely superseded by Transformers.
+*** Why Chosen: Handle variable-length sequences; maintain hidden state.
+*** Details: Backpropagation through time; vanishing/exploding gradients.
+*** Variants
+**** LSTM: Gated memory cells; long-term dependencies.
+**** GRU: Simpler gating; similar performance to LSTM.
+** Transformers
+*** Tasks: NLP (translation, generation); vision (ViT); multimodal; now dominant.
+*** Why Chosen: Self-attention enables parallelization; captures long-range dependencies; scalable.
+*** Details: Encoder-decoder; positional encodings; multi-head attention.
+*** NLP-Focused
+**** BERT (2018): Bidirectional encoder; pretraining on masked LM; fine-tune for tasks.
+**** GPT Series (2018+): Decoder-only; autoregressive generation; scaling laws.
+**** T5: Text-to-text framework; unified pretraining.
+*** Vision Transformers (ViT)
+**** Tasks: Image classification; patch-based tokens.
+**** Why Chosen: Outperforms CNNs on large data; no inductive bias but highly scalable.
+*** Multimodal/Large Models
+**** CLIP: Contrastive image-text pretraining; zero-shot capabilities.
+**** Flamingo/DALL-E: Vision-language models; image generation from text.
+** Generative Models
+*** Autoencoders
+**** Tasks: Denoising, anomaly detection, feature learning.
+**** Variants: Variational Autoencoders (VAE) - Probabilistic latent space; generative sampling.
+*** Generative Adversarial Networks (GANs)
+**** Tasks: Image/video synthesis, style transfer.
+**** Why Chosen: Produces high-quality samples via min-max game.
+**** Details: Generator vs Discriminator; training instability.
+**** Variants: DCGAN (convolutional), StyleGAN (progressive/style-based), BigGAN (large-scale).
+*** Diffusion Models (2020+)
+**** Tasks: State-of-the-art image/video generation (e.g., Stable Diffusion, Sora).
+**** Why Chosen: Stable training; superior sample quality/diversity.
+**** Details: Forward noise addition + reverse denoising; U-Net backbone.
+** Graph Neural Networks (GNNs)
+*** Tasks: Node/edge/graph prediction on structured graphs (social nets, molecules).
+*** Why Chosen: Handle non-Euclidean data; message passing paradigm.
+*** Details: Aggregates neighbor information.
+*** Variants: GCN (convolutional), GAT (attention), GraphSAGE (sampling).
+** Key Considerations
+*** Pretraining & Transfer Learning: Crucial (ImageNet, BERT, CLIP); fine-tune to save resources.
+*** Architectures Trends (2025): Scaling (larger models), efficiency (quantization/pruning), multimodal integration.
+*** Task-Specific: Choose CNNs for grids, Transformers for sequences/text, hybrids for multimodal.
+*** Evaluation: Task metrics + efficiency (FLOPs, latency); benchmarks like GLUE, ImageNet, COCO.
+*** Frameworks: PyTorch/TensorFlow/JAX; libraries like Hugging Face Transformers.
+@endmindmap

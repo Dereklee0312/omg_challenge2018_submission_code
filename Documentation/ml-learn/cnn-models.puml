@@ -1,0 +1,136 @@
+@startmindmap
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontSize 12
+skinparam mindmapMaxNodeWidth 250
+
+* CNN Design Decision Guide
+** Step 1: Identify Data Type & Dimensionality
+*** 1D (Sequences, Time Series)
+**** Use Conv1D layers
+**** Examples: Audio, Text, Signals
+**** Architectures: Temporal CNNs, Wavenet-inspired
+*** 2D (Images, Grids)
+**** Use Conv2D layers
+**** Standard for computer vision
+**** Architectures: Most popular ones below
+*** 3D (Videos, Volumes)
+**** Use Conv3D or 2D+Time (e.g., ConvLSTM)
+**** Examples: Medical Imaging, Video Analysis
+**** Architectures: C3D, I3D, SlowFast
+** Step 2: Define Task & Objectives
+*** Classification
+**** Single/Multi-label image classification
+**** Metrics: Accuracy, Top-k
+*** Object Detection/Segmentation
+**** Bounding boxes, masks
+**** Architectures: YOLO, Faster R-CNN, U-Net, Mask R-CNN
+*** Regression
+**** Predicting continuous values (e.g., age from image)
+**** Metrics: MSE, MAE
+*** Generative/Other
+**** GANs, Autoencoders, Style Transfer
+**** Architectures: DCGAN, U-Net variants
+*** Key Objectives
+**** High Accuracy vs. Efficiency Trade-off
+**** Real-time (low latency) vs. Batch Processing
+**** Deployment: Edge devices (lightweight) vs. Servers (complex)
+** Step 3: Consider Constraints
+*** Computational Resources
+**** High: Use deep, parameter-heavy models (e.g., ResNet-152)
+**** Low: Lightweight (e.g., MobileNet, EfficientNet)
+*** Dataset Size
+**** Large: Complex models to avoid underfitting
+**** Small: Use transfer learning, data augmentation
+*** Interpretability
+**** Needed: Simpler models like LeNet or VGG
+**** Not: Black-box like Inception
+** Step 4: Select Architecture Family
+*** Classic/Simple
+**** LeNet-5 (1998)
+***** Structure: Conv-Pool-Conv-Pool-FC
+***** Pros: Simple, for small images (e.g., digits)
+***** Cons: Not deep, limited for complex tasks
+***** Use: Educational, low-res data
+**** AlexNet (2012)
+***** Structure: 5 Conv + 3 FC, ReLU, Dropout, Data Aug
+***** Pros: Deep for its time, won ImageNet
+***** Cons: High params (60M), no bottlenecks
+***** Use: Baseline for image classification
+*** Depth-Focused
+**** VGG (2014)
+***** Variants: VGG16/19
+***** Structure: Stacked 3x3 Convs, MaxPool, FC head
+***** Pros: Uniform, easy to implement, good features
+***** Cons: Very deep (up to 19 layers), 138M params, memory-intensive
+***** Use: Feature extraction, transfer learning
+**** ResNet (2015)
+***** Variants: ResNet-18/50/101/152, ResNetV2
+***** Structure: Residual blocks with skip connections
+***** Pros: Very deep (100+ layers), mitigates vanishing gradients
+***** Cons: Higher compute for deeper variants
+***** Use: State-of-the-art classification, backbone for detection
+*** Width & Multi-Scale
+**** Inception (GoogLeNet, 2014)
+***** Variants: InceptionV1-V4, Inception-ResNet
+***** Structure: Inception modules (parallel 1x1,3x3,5x5 convs + pool)
+***** Pros: Efficient params (22M), multi-scale features
+***** Cons: Complex to implement, harder to tune
+***** Use: When param efficiency matters
+**** Xception (2016)
+***** Structure: Depthwise separable convs + residuals
+***** Pros: Better than InceptionV3 with fewer params
+***** Cons: Still complex
+***** Use: Mobile/embedded vision
+*** Dense Connectivity
+**** DenseNet (2017)
+***** Variants: DenseNet-121/169/201
+***** Structure: Dense blocks (each layer connects to all subsequent)
+***** Pros: Feature reuse, fewer params (8M for 121), strong gradients
+***** Cons: High memory during training
+***** Use: When memory allows, for high accuracy
+*** Efficiency-Optimized
+**** MobileNet (2017)
+***** Variants: V1-V3
+***** Structure: Depthwise separable convs, inverted residuals (V2)
+***** Pros: Lightweight (4M params), fast on mobile
+***** Cons: Lower accuracy than heavier models
+***** Use: Edge devices, real-time apps
+**** EfficientNet (2019)
+***** Variants: B0-B7
+***** Structure: Compound scaling (depth/width/resolution), MBConv blocks
+***** Pros: SOTA efficiency-accuracy Pareto front
+***** Cons: Requires careful scaling
+***** Use: Balanced performance, scalable
+**** NASNet / AutoML (2018+)
+***** Structure: Neural Architecture Search-derived cells
+***** Pros: Automated optimization
+***** Cons: Hard to reproduce without resources
+***** Use: Advanced, when customizing
+*** Modern/Transformers Hybrid
+**** Vision Transformer (ViT, 2020)
+***** Structure: Patch embeddings + Transformer encoder
+***** Pros: Scalable, attention-based
+***** Cons: Data-hungry, less inductive bias
+***** Use: Large datasets, alternative to CNNs
+**** ConvNeXt (2022)
+***** Structure: Modernized ResNet with ConvNext blocks
+***** Pros: Competes with Transformers in efficiency
+***** Cons: Still CNN-based
+***** Use: Pure CNN in transformer era
+** Step 5: Customization & Best Practices
+*** Building Blocks
+**** Conv Layers: Kernel size (3x3 common), Strides, Padding
+**** Activation: ReLU, LeakyReLU, Swish
+**** Normalization: BatchNorm, LayerNorm, GroupNorm
+**** Pooling: Max/Avg/Global
+**** Regularization: Dropout, L1/L2, Augmentation
+*** Enhancements
+**** Transfer Learning: Pretrain on ImageNet/COCO
+**** Ensemble: Combine models for robustness
+**** Pruning/Quantization: For deployment
+*** Evaluation
+**** Metrics: Task-specific (e.g., mAP for detection)
+**** Tools: TensorBoard, Grad-CAM for visualization
+**** Iterate: Start simple, add complexity
+@endmindmap

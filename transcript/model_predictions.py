@@ -1,15 +1,56 @@
+"""Run transcript model inference and export legacy + canonical predictions."""
+
 import numpy as np
 from keras.models import Model
 from keras.layers import Input, Dense, Dropout, Embedding, LSTM, concatenate, Flatten
 from scipy.signal import butter, lfilter
 from models.attlayer import AttentionWeightedAverage  # Ensure this is accessible
 import os
+from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from shared_utils.config_loader import load_defaults, resolve_manifest, resolve_repo_path
+from shared_utils.split_validation import split_for_story
+from shared_utils.pred_schema import ensure_prediction_dir, write_prediction_csv
 
 # Parameters (must match training settings)
-subjects = [1,2,3,4,5,6,7,8,9,10]
-stories_new = [1,4,5,8]
-base_path = "./data/"
-output_path = "./predictions/"  # Directory to save prediction .npy files
+BASE_DIR = Path(__file__).resolve().parent
+defaults = load_defaults()
+manifest = resolve_manifest(defaults)
+subjects = manifest["subjects_val"]
+# Use validation stories for predictions (or specify which stories to predict)
+validation_annotations_path = defaults["paths"]["val_annotations"]
+
+# Discover validation stories from directory
+def discover_stories(annotations_dir):
+    """Discover story IDs present in an annotations directory."""
+    story_nums = set()
+    for file in os.listdir(annotations_dir):
+        if file.endswith(".csv") and file.startswith("Subject_"):
+            parts = file.split("_")
+            if len(parts) >= 4:
+                try:
+                    story_num = int(parts[3].split(".")[0])
+                    story_nums.add(story_num)
+                except ValueError:
+                    continue
+    return sorted(list(story_nums))
+
+stories_new = discover_stories(validation_annotations_path)
+print(f"Generating predictions for stories: {stories_new}")
+stories_new = [s for s in stories_new if s in manifest["stories_val"]]
+
+base_path = str(BASE_DIR / "data")
+pred_base_dir = defaults["predictions"]["base_dir"]
+output_path = str(
+    resolve_repo_path(
+        defaults["paths"].get(
+            "transcript_legacy_predictions",
+            "predictions/transcript_legacy_npy",
+        )
+    )
+)  # legacy npy output
 window_size = 100
 stride = 50
 embedding_size = 11
@@ -30,8 +71,9 @@ train_max_y = 1.0  # Replace with actual max_y from training
 
 # Data loading function from original script
 def get_X(story, subject, modality):
+    """Load aligned transcript embeddings for one subject/story pair."""
     file_name = "/Subject_" + str(subject) + "_Story_" + str(story) + "_aligned.npy"
-    base_path = "./vectors/val2/"
+    base_path = str(BASE_DIR / "vectors/val2") + "/"
     latent_vecs_path = base_path + "text_aligned" + file_name
     try:
         X = np.load(latent_vecs_path)
@@ -59,6 +101,7 @@ def butter_lowpass_filter_bidirectional(data, cutoff=0.1, fs=25, order=1):
 
 # Model architecture
 def build_model():
+    """Build the transcript LSTM model architecture used for inference."""
     input_late_subject = Input(shape=(1,), dtype='int32')
     input_lstm = Input(shape=(window_size, embedding_size))
     seq_input_drop = Dropout(initial_dropout)(input_lstm)
@@ -79,6 +122,7 @@ def build_model():
 
 # Post-processing (if used during training)
 def f_trick(Y_train, preds):
+    """Rescale predictions to match target distribution moments."""
     Y_train_flat = Y_train.flatten()
     preds_flat = preds.flatten()
     s0 = np.std(Y_train_flat)
@@ -88,13 +132,14 @@ def f_trick(Y_train, preds):
     norm_preds = s0 * (preds_flat - m1) / (s1 + 1e-10) + m0
     return norm_preds
 
-# Create output directory if it doesn't exist
+# Create legacy `.npy` output dir and canonical CSV output dir.
 os.makedirs(output_path, exist_ok=True)
+csv_out_dir = ensure_prediction_dir(pred_base_dir, "transcript")
 
 # Load model and weights
 print("Loading model...")
 model = build_model()
-model.load_weights("tmp_weights.h5")  # Load saved weights
+model.load_weights(str(BASE_DIR / "tmp_weights.h5"))  # Load saved weights
 
 # Process each subject-story pair
 print("Generating predictions...")
@@ -133,13 +178,9 @@ for subject in subjects:
         # Make predictions
         predictions = model.predict([X_new_late_subject, X_new], batch_size=500)  # Shape: [num_windows, 1]
         
-        # Reverse normalization (if applied during training)
+        # Reverse normalization 
         if normalize_labels:
             predictions = predictions * (train_max_y - train_min_y) + train_min_y
-        
-        # Optional: Apply f_trick (requires Y_train)
-        # Y_train = ... # Load training labels if needed
-        # predictions = f_trick(Y_train, predictions)
         
         # Flatten predictions
         predictions = predictions.flatten()  # Shape: [num_windows]
@@ -148,5 +189,15 @@ for subject in subjects:
         output_file = os.path.join(output_path, f"Subject_{subject}_Story_{story}_predictions.npy")
         np.save(output_file, predictions)
         print(f"Saved predictions to {output_file} (Shape: {predictions.shape})")
+        split = split_for_story(story, manifest["stories_train"], manifest["stories_val"])
+        write_prediction_csv(
+            csv_out_dir,
+            subject,
+            story,
+            frame_idx=list(range(len(predictions))),
+            y_pred=predictions.tolist(),
+            manifest_id=manifest["manifest_id"],
+            split=split,
+        )
 
 print("Prediction generation complete.")
